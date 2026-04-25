@@ -3,6 +3,53 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v0.2.0 — 2026-04-26
+
+**Multi-PDF merging shipped — the headline feature.** This is what
+the upstream Ruby gem `combine_pdf` is famous for, and it's now
+available in Crystal too.
+
+Three new building blocks :
+
+* `CombinePDF.merge(inputs : Array(String), output : String)` —
+  concatenates several PDFs into one. Pages are taken in input
+  order. Object IDs are renumbered to avoid collisions between
+  sources, references rewritten recursively (Dictionary → Array →
+  Stream metadata). MediaBox of every page preserved (mix A4 +
+  Letter + A3 cohabits without normalisation).
+* `CombinePDF.assemble(inputs, output, options)` — end-to-end
+  booklet assembly: merges N PDFs, then numbers the result with
+  partition sizes auto-detected from the input page counts. The
+  workflow for a music score booklet of partitions of 1, 2 or N
+  pages.
+* CLI sub-commands `merge` and `assemble` :
+
+  ----
+  crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o livret.pdf
+  crystal-combine-pdf assemble p1.pdf p2.pdf p3.pdf -o livret.pdf
+  ----
+
+Implementation details :
+
+* New `CombinePDF::Merger` class : reads each source via
+  `PDF::Reader`, forces lazy materialisation of every indirect
+  object via `Reader#resolve` over the whole xref, then renumbers
+  & remaps recursively.
+* New `CombinePDF::MergedDocumentWriter` : minimal PDF writer
+  (header + indirect objects + xref + trailer). Bypasses
+  `PDF::Document` because the latter is coupled to its in-memory
+  pages and doesn't apply to external page injection.
+* Dropped `/Filter`, `/DecodeParms`, `/Length` from copied stream
+  dicts — the Reader stores decoded bytes but leaves the original
+  filter declaration, which would make the next parser try to
+  Flate-decode already-clear bytes.
+* No deduplication of common resources (fonts, images) yet — the
+  output is correct but slightly larger than what an optimising
+  merger would produce. Targeted for v0.3.
+
+Tests : 13 examples (2 unit + 11 integration), all green via real
+`PDF::Reader.open` round-trips.
+
 == v0.1.1 — 2026-04-25
 
 Tightens the integration test suite and removes the v0.1.0

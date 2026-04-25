@@ -49,9 +49,11 @@ geometry read from the actual `MediaBox` of every page.
 
 == Roadmap
 
-* **v0.2** — multi-PDF merging (the "combine" of `combine_pdf`).
-* **v0.3** — booklet assembly: merge + number in one shot
-  (`crystal-combine-pdf assemble file1.pdf file2.pdf …`).
+* **v0.2** — ✅ multi-PDF merging + `assemble` sub-command (booklet
+  workflow merge+number in one shot).
+* **v0.3** — resource deduplication (avoid embedding the same font
+  N times when merging N PDFs sharing it), `insert(location, data)`,
+  `remove(page_index)`.
 * **v0.4** — encryption support (PDF passwords) for ISO 27001
   compliance use cases.
 * **v0.5+** — PAdES-style signatures.
@@ -82,9 +84,32 @@ cp bin/crystal-combine-pdf ~/bin/   # or use crystal-bin-installer
 
 == CLI
 
+Three sub-commands: `number`, `merge`, `assemble`.
+
+=== `assemble` — the booklet workflow (most users want this)
+
 [source,shell]
 ----
-# Number every page, format "N/T" in the bottom-right corner.
+# Take three partition PDFs, merge them, number the result with
+# auto-detected partition sizes (so each partition gets its
+# intra-partition "1/4", "2/4" marks where relevant).
+crystal-combine-pdf assemble \
+  partition1.pdf partition2.pdf partition3.pdf \
+  -o livret.pdf
+----
+
+=== `merge` — pure concatenation, no numbering
+
+[source,shell]
+----
+crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o output.pdf
+----
+
+=== `number` — number an already-assembled PDF
+
+[source,shell]
+----
+# Default: format "N/T" in the bottom-right corner.
 crystal-combine-pdf number booklet.pdf
 
 # Same, with intra-partition marks. Partition sizes are given in
@@ -166,14 +191,18 @@ CombinePDF.number(
 )
 ----
 
-== Limitations (v0.1)
+== Limitations (v0.2)
 
-* No multi-PDF merging yet — feed an already-assembled PDF.
+* No deduplication of common resources when merging — a font or
+  image embedded in N source PDFs is copied N times to the output.
+  Result is correct but slightly larger than an optimising merger
+  would produce. Targeted for v0.3.
 * Numbering is rendered with the standard Type1 `Helvetica` (no
   embedded font, no Unicode beyond ASCII digits + `/`).
-* The output PDF uses an **incremental update** (PDF spec § 7.5.6).
-  All real-world PDF readers handle this; `crystal-pdf::Reader`
-  v0.3.4+ also does.
+* The output of `number` uses an **incremental update** (PDF spec
+  § 7.5.6) ; `merge` and `assemble` write a fresh PDF from scratch.
+  Both are handled correctly by `crystal-pdf::Reader` v0.3.4+ and
+  every real-world PDF reader.
 
 == Development
 

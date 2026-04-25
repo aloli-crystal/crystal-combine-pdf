@@ -1,5 +1,5 @@
 name: crystal-combine-pdf
-version: 0.1.1
+version: 0.2.0
 
 description: |
   PDF page numbering and (eventually) multi-PDF merging in pure

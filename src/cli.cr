@@ -3,24 +3,20 @@ require "./combine_pdf"
 
 # crystal-combine-pdf CLI.
 #
-# v0.1 ships a single sub-command: `number`. Multi-PDF merging will
-# come in v0.2.
+# v0.2 ships three sub-commands :
 #
-# ```
-# # Number an A4 booklet, format "N/T" in the bottom-right corner.
-# crystal-combine-pdf number booklet.pdf
+#   number    — number the pages of an existing PDF
+#   merge     — concatenate several PDFs into one
+#   assemble  — merge + number in one shot (booklet workflow)
 #
-# # Same but mark intra-partition pages too. Partition sizes are
-# # given in 1-based page order — sum must equal the total page
-# # count.
-# crystal-combine-pdf number booklet.pdf --partitions 4,2,1
-#
-# # Skip page 1 (the cover) and write to a custom path.
-# crystal-combine-pdf number booklet.pdf --output out.pdf --skip 1
-# ```
+# Examples (shell):
+#   $ crystal-combine-pdf number booklet.pdf
+#   $ crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o out.pdf
+#   $ crystal-combine-pdf assemble p1.pdf p2.pdf p3.pdf -o livret.pdf
 
-input_path = ""
+# Common options.
 output_path = ""
+# `number` / `assemble` only.
 partitions : Array(Int32)? = nil
 skip_pages = [] of Int32
 font_size = 10.0
@@ -32,16 +28,22 @@ hide_partition_when_single = true
 
 parser = OptionParser.new do |p|
   p.banner = <<-BANNER
-    Usage : crystal-combine-pdf SUBCOMMAND [options]
+    Usage : crystal-combine-pdf SOUS-COMMANDE [options] FICHIERS...
 
     Sous-commandes :
-      number FICHIER       Numérote chaque page du PDF (format A4-aware)
+      number FICHIER                Numérote chaque page d'un PDF (A4-aware)
+      merge FICHIER1 FICHIER2 ...   Concatène plusieurs PDF en un seul
+      assemble FICHIER1 FICHIER2 .. Merge + numérotation auto (livret de partitions)
 
-    Options de la sous-commande `number` :
+    Options communes :
     BANNER
 
-  p.on("-o FICHIER", "--output FICHIER", "Fichier de sortie (défaut : <input>-numbered.pdf)") { |v| output_path = v }
-  p.on("--partitions LIST", "Tailles de partitions séparées par des virgules (ex: 4,2,1)") do |v|
+  p.on("-o FICHIER", "--output FICHIER", "Fichier de sortie") { |v| output_path = v }
+
+  p.separator ""
+  p.separator "Options spécifiques à `number` et `assemble` :"
+
+  p.on("--partitions LIST", "Tailles de partitions séparées par des virgules (ex: 4,2,1). Ignoré pour `assemble` qui les détecte automatiquement") do |v|
     partitions = v.split(',').map(&.strip.to_i)
   end
   p.on("--skip PAGES", "Pages à ne pas numéroter, séparées par des virgules (ex: 1,2)") do |v|
@@ -55,6 +57,10 @@ parser = OptionParser.new do |p|
   p.on("--show-single-partitions", "Toujours afficher le numéro intra-partition, même quand la partition fait 1 seule page") do
     hide_partition_when_single = false
   end
+
+  p.separator ""
+  p.separator "Aide :"
+
   p.on("-v", "--version", "Afficher la version") do
     puts "crystal-combine-pdf #{CombinePDF::VERSION}"
     exit 0
@@ -86,6 +92,27 @@ end
 subcommand = positional.first
 remaining = positional[1..]
 
+# Helper : builds the Options object from the CLI flags.
+def build_options(font_size, margin, color_str, global_format, partition_format,
+                  hide_partition_when_single, skip_pages) : CombinePDF::Options
+  color_parts = color_str.split(',').map(&.to_f)
+  if color_parts.size != 3
+    STDERR.puts "Erreur : la couleur doit être au format R,G,B (ex : 0.2,0.2,0.2)"
+    exit 1
+  end
+  color = {color_parts[0], color_parts[1], color_parts[2]}
+
+  CombinePDF::Options.new(
+    font_size: font_size,
+    color: color,
+    margin: margin,
+    global_format: global_format,
+    partition_format: partition_format,
+    hide_partition_when_single: hide_partition_when_single,
+    skip_pages: skip_pages,
+  )
+end
+
 case subcommand
 when "number"
   if remaining.empty?
@@ -106,22 +133,8 @@ when "number"
     output_path = File.join(dir, "#{base}-numbered.pdf")
   end
 
-  color_parts = color_str.split(',').map(&.to_f)
-  if color_parts.size != 3
-    STDERR.puts "Erreur : la couleur doit être au format R,G,B (ex : 0.2,0.2,0.2)"
-    exit 1
-  end
-  color = {color_parts[0], color_parts[1], color_parts[2]}
-
-  options = CombinePDF::Options.new(
-    font_size: font_size,
-    color: color,
-    margin: margin,
-    global_format: global_format,
-    partition_format: partition_format,
-    hide_partition_when_single: hide_partition_when_single,
-    skip_pages: skip_pages,
-  )
+  options = build_options(font_size, margin, color_str, global_format,
+    partition_format, hide_partition_when_single, skip_pages)
 
   begin
     CombinePDF.number(
@@ -131,6 +144,59 @@ when "number"
       options: options,
     )
     puts "PDF numéroté : #{output_path}"
+  rescue ex
+    STDERR.puts "Erreur : #{ex.message}"
+    exit 1
+  end
+when "merge"
+  if remaining.size < 2
+    STDERR.puts "Erreur : la sous-commande `merge` attend au moins deux fichiers PDF en argument"
+    STDERR.puts parser
+    exit 1
+  end
+
+  remaining.each do |path|
+    unless File.exists?(path)
+      STDERR.puts "Erreur : fichier introuvable : #{path}"
+      exit 1
+    end
+  end
+
+  if output_path.empty?
+    output_path = "merged.pdf"
+  end
+
+  begin
+    CombinePDF.merge(inputs: remaining, output: output_path)
+    puts "PDF fusionné : #{output_path}"
+  rescue ex
+    STDERR.puts "Erreur : #{ex.message}"
+    exit 1
+  end
+when "assemble"
+  if remaining.size < 2
+    STDERR.puts "Erreur : la sous-commande `assemble` attend au moins deux fichiers PDF en argument"
+    STDERR.puts parser
+    exit 1
+  end
+
+  remaining.each do |path|
+    unless File.exists?(path)
+      STDERR.puts "Erreur : fichier introuvable : #{path}"
+      exit 1
+    end
+  end
+
+  if output_path.empty?
+    output_path = "livret.pdf"
+  end
+
+  options = build_options(font_size, margin, color_str, global_format,
+    partition_format, hide_partition_when_single, skip_pages)
+
+  begin
+    CombinePDF.assemble(inputs: remaining, output: output_path, options: options)
+    puts "Livret assemblé : #{output_path}"
   rescue ex
     STDERR.puts "Erreur : #{ex.message}"
     exit 1

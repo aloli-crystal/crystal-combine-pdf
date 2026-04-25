@@ -3,6 +3,56 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v0.2.0 — 2026-04-26
+
+**Fusion multi-PDF livrée — la fonctionnalité phare.** C'est ce qui
+fait la renommée de la gem Ruby `combine_pdf` en amont, c'est
+maintenant disponible en Crystal aussi.
+
+Trois nouvelles briques :
+
+* `CombinePDF.merge(inputs : Array(String), output : String)` —
+  concatène plusieurs PDF en un seul. Pages prises dans l'ordre
+  d'entrée. Les IDs d'objets sont renumérotés pour éviter les
+  collisions entre sources, les références sont réécrites
+  récursivement (Dictionary → Array → metadata de Stream). La
+  MediaBox de chaque page est préservée (un mix A4 + Letter +
+  A3 cohabite sans normalisation).
+* `CombinePDF.assemble(inputs, output, options)` — assemblage de
+  livret bout-en-bout : fusionne N PDF, puis numérote le résultat
+  avec des tailles de partition auto-détectées depuis le nombre
+  de pages de chaque entrée. Le workflow type pour un recueil
+  de partitions musicales contenant des morceaux de 1, 2 ou N
+  pages.
+* Sous-commandes CLI `merge` et `assemble` :
+
+  ----
+  crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o livret.pdf
+  crystal-combine-pdf assemble p1.pdf p2.pdf p3.pdf -o livret.pdf
+  ----
+
+Détails d'implémentation :
+
+* Nouvelle classe `CombinePDF::Merger` : lit chaque source via
+  `PDF::Reader`, force la matérialisation paresseuse de tous les
+  objets indirects via `Reader#resolve` sur tout le xref, puis
+  renumérote et remappe récursivement.
+* Nouvel `CombinePDF::MergedDocumentWriter` : écrivain PDF
+  minimaliste (en-tête + objets indirects + xref + trailer).
+  Court-circuite `PDF::Document` qui est couplé à ses pages
+  internes et inadapté à l'injection de pages externes.
+* Suppression de `/Filter`, `/DecodeParms`, `/Length` des
+  dictionnaires de stream copiés — le Reader stocke les octets
+  décodés mais laisse la déclaration de filtre originale, ce qui
+  ferait que le prochain parseur tente de Flate-décoder des
+  octets déjà clairs.
+* Pas encore de déduplication des ressources communes (polices,
+  images) — la sortie est correcte mais légèrement plus volumineuse
+  qu'un merger optimisant. Visé pour la v0.3.
+
+Tests : 13 exemples (2 unit + 11 intégration), tous verts via des
+aller-retours `PDF::Reader.open` réels.
+
 == v0.1.1 — 2026-04-25
 
 Resserre la suite de tests d'intégration et supprime la note de
