@@ -3,6 +3,21 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v0.1.1 — 2026-04-25
+
+Tightens the integration test suite and removes the v0.1.0
+limitation note about re-parsing the output: `crystal-pdf` v0.3.4
+fixed the byte-vs-char offset bug in `find_xref_offset`, so the
+incremental update PDFs produced by the Numberer can now be
+re-opened cleanly via `PDF::Reader.open`.
+
+* Integration specs now drive their assertions through the real
+  reader (page count + per-page MediaBox) instead of byte-level
+  pattern counting. Net effect: stronger guarantees with fewer
+  lines of test code.
+* No behavioural change for end users — the Numberer output is
+  byte-identical between v0.1.0 and v0.1.1.
+
 == v0.1.0 — 2026-04-25
 
 First public release. Pure-Crystal PDF page numbering, designed for

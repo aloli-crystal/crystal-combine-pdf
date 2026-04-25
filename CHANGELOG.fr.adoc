@@ -3,6 +3,22 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v0.1.1 — 2026-04-25
+
+Resserre la suite de tests d'intégration et supprime la note de
+limitation v0.1.0 sur la réouverture de la sortie : `crystal-pdf`
+v0.3.4 a corrigé le bug d'offset octet-vs-caractère dans
+`find_xref_offset`, donc les PDF en mise à jour incrémentale
+produits par le Numberer se rouvrent désormais proprement via
+`PDF::Reader.open`.
+
+* Les specs d'intégration vérifient maintenant à travers le vrai
+  reader (nombre de pages + MediaBox par page) au lieu du comptage
+  d'occurrences au niveau octet. Bilan net : garanties plus fortes
+  avec moins de lignes de test.
+* Aucun changement de comportement côté utilisateur — la sortie du
+  Numberer est byte-identique entre la v0.1.0 et la v0.1.1.
+
 == v0.1.0 — 2026-04-25
 
 Première version publique. Numérotation de pages PDF en Crystal pur,

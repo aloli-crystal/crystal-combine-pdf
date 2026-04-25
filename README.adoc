@@ -172,8 +172,8 @@ CombinePDF.number(
 * Numbering is rendered with the standard Type1 `Helvetica` (no
   embedded font, no Unicode beyond ASCII digits + `/`).
 * The output PDF uses an **incremental update** (PDF spec § 7.5.6).
-  All real-world PDF readers handle this; only `crystal-pdf::Reader`
-  v0.3.3 itself does not (a fix is staged for v0.3.4).
+  All real-world PDF readers handle this; `crystal-pdf::Reader`
+  v0.3.4+ also does.
 
 == Development
 

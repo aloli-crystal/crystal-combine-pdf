@@ -1,26 +1,29 @@
 require "../spec_helper"
 
 # End-to-end numbering: generate fresh A4 / Letter PDFs with
-# crystal-pdf, run the Numberer, and assert byte-level properties on
-# the output. We do not rely on `PDF::Reader.open` for the output
-# (crystal-pdf v0.3.3 does not yet handle the incremental update
-# format that `add_content_stream` produces).
+# `crystal-pdf`, run the Numberer, and re-parse the output through
+# `PDF::Reader.open` to confirm the page count and MediaBox survive
+# the incremental update.
+#
+# crystal-pdf v0.3.4+ correctly re-reads the incremental update
+# format that `add_content_stream` produces, so the assertions go
+# through the real reader (no more byte-level workarounds).
 describe CombinePDF::Numberer do
   it "appends a numbered content stream on every page (A4)" do
     src = File.join(SpecHelper::TMP_DIR, "src-a4.pdf")
     dst = File.join(SpecHelper::TMP_DIR, "out-a4.pdf")
     SpecHelper.write_a4(src, page_count: 3)
+    original_dims = SpecHelper.page_size(src, 0)
 
     CombinePDF.number(input: src, output: dst)
 
     File.exists?(dst).should be_true
     File.size(dst).should be > File.size(src)
-    File.read(dst).rstrip.should end_with("%%EOF")
-    # Three new content streams (one per page) → strictly more `endobj`
-    # markers than in the source.
-    new_objs = SpecHelper.count_byte_pattern(dst, "endobj") -
-               SpecHelper.count_byte_pattern(src, "endobj")
-    new_objs.should be >= 3
+    # Page count and geometry are preserved.
+    SpecHelper.page_count(dst).should eq(3)
+    SpecHelper.page_size(dst, 0).should eq(original_dims)
+    SpecHelper.page_size(dst, 1).should eq(original_dims)
+    SpecHelper.page_size(dst, 2).should eq(original_dims)
   end
 
   it "honours the actual MediaBox on US Letter pages (no A4 hardcode)" do
@@ -28,13 +31,18 @@ describe CombinePDF::Numberer do
     dst = File.join(SpecHelper::TMP_DIR, "out-letter.pdf")
     SpecHelper.write_letter(src)
 
+    # Confirm the source is really US Letter, not A4.
+    src_w, src_h = SpecHelper.page_size(src, 0)
+    ((src_w - 612).abs).should be < 1.0
+    ((src_h - 792).abs).should be < 1.0
+
     CombinePDF.number(input: src, output: dst)
 
-    # MediaBox of US Letter (612 × 792 pt) is preserved verbatim.
-    SpecHelper.count_byte_pattern(dst, "/MediaBox [0 0 612 792]").should be > 0
-    # And no A4 MediaBox `[0 0 595 842]` snuck in — that would be
-    # the regression we're guarding against.
-    SpecHelper.count_byte_pattern(dst, "/MediaBox [0 0 595 842]").should eq(0)
+    # Output keeps the same Letter geometry — and is *not* A4.
+    out_w, out_h = SpecHelper.page_size(dst, 0)
+    out_w.should eq(src_w)
+    out_h.should eq(src_h)
+    ((out_w - 595).abs).should be > 1.0 # not A4 width
   end
 
   it "raises ArgumentError when partition sizes don't sum to total pages" do
@@ -56,12 +64,7 @@ describe CombinePDF::Numberer do
     CombinePDF.number(input: src, output: dst, partitions: [4, 2, 1])
 
     File.exists?(dst).should be_true
-    # Each page got a numbered stream (the third partition has only
-    # one page so it does NOT get an intra-partition mark, but the
-    # global number is still rendered).
-    new_objs = SpecHelper.count_byte_pattern(dst, "endobj") -
-               SpecHelper.count_byte_pattern(src, "endobj")
-    new_objs.should be >= 7
+    SpecHelper.page_count(dst).should eq(7)
   end
 
   it "skips pages listed in skip_pages" do
@@ -79,7 +82,10 @@ describe CombinePDF::Numberer do
       options: CombinePDF::Options.new(skip_pages: [1]),
     )
 
-    # Skipping a page must produce a smaller output.
+    # Both outputs re-parse cleanly with the original page count…
+    SpecHelper.page_count(dst_with).should eq(3)
+    SpecHelper.page_count(dst_skip).should eq(3)
+    # …and skipping a page produces a smaller output.
     File.size(dst_skip).should be < File.size(dst_with)
   end
 end

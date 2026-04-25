@@ -3,9 +3,9 @@ require "file_utils"
 require "../src/combine_pdf"
 
 # Shared test helpers: generate fresh fixture PDFs at known formats
-# (A4, Letter) and a known number of pages. The numberer's only
-# observable side effects are byte-level (size growth, content stream
-# additions, MediaBox preservation), so we don't need a re-parser.
+# (A4, Letter) and a known number of pages, then re-parse the
+# numberer's output through `PDF::Reader.open` to confirm the page
+# count and MediaBox are preserved.
 module SpecHelper
   TMP_DIR = File.join(__DIR__, "tmp")
 
@@ -33,6 +33,19 @@ module SpecHelper
       page.text("Letter page", at: {72, 720})
     end
     pdf.save(path)
+  end
+
+  # Re-parses the PDF and returns the number of pages.
+  def self.page_count(path : String) : Int32
+    PDF::Reader.open(path).page_count
+  end
+
+  # Re-parses the PDF and returns the {width, height} of page index
+  # `i` (0-based). Used to confirm the numberer did not alter page
+  # geometry.
+  def self.page_size(path : String, i : Int32 = 0) : Tuple(Float64, Float64)
+    page = PDF::Reader.open(path).pages[i]
+    {page.width, page.height}
   end
 
   # Returns the byte-level count of `pattern` in the file at `path`.
