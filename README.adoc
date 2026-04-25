@@ -1,0 +1,190 @@
+= crystal-combine-pdf
+:toc: macro
+:toclevels: 2
+
+PDF post-processing in pure Crystal. v0.1 ships **page numbering**
+that honours the actual page format (A4, Letter, A3, …) and supports
+*partition-aware* intra-numbering — the one that lets a music-score
+booklet show "1/4", "2/4" on a 4-page partition while the global
+"3/12" stays in the bottom-right corner.
+
+Inspired by the Ruby gem
+https://github.com/boazsegev/combine_pdf[combine_pdf] — fixes the
+US Letter hardcoding bug of `combine_pdf.number_pages` and adds
+intra-partition numbering, which the upstream gem does not support.
+
+🇫🇷 Lisez ce document en français : link:README.fr.adoc[README.fr.adoc]
+
+toc::[]
+
+== Why
+
+The Ruby gem `combine_pdf` is the de facto tool for assembling PDF
+booklets. Its `number_pages` helper draws the page number at
+hardcoded coordinates derived from US Letter (612 × 792 pt). On A4
+(595 × 842 pt), Asia A4 or A3 the number lands several centimetres
+off.
+
+Beyond the format mismatch, an assembled music-score booklet — where
+each "partition" (sheet) may span 1, 2 or N pages — needs a second
+layer of numbering: a small "1/4", "2/4", … in the corner of each
+page of the partition, so the performer knows when to turn the page
+and how many are left in the current piece.
+
+`crystal-combine-pdf` does both, in pure Crystal, with the page
+geometry read from the actual `MediaBox` of every page.
+
+== Features (v0.1)
+
+* **Global page numbering** in the bottom-right corner (format
+  customisable, default `"N/T"`).
+* **Intra-partition numbering** in the top-left corner (format
+  customisable, default `"n/t"`), shown only when the partition has
+  more than one page (configurable).
+* **A4-aware**, Letter-aware, A3-aware — coordinates computed from
+  each page's `MediaBox`, no per-format flag needed.
+* **Skip pages** (e.g. covers): `--skip 1,2`.
+* **Pure Crystal**, single binary, no `pdftk`/`qpdf`/`pdftotext` on
+  `$PATH`.
+
+== Roadmap
+
+* **v0.2** — multi-PDF merging (the "combine" of `combine_pdf`).
+* **v0.3** — booklet assembly: merge + number in one shot
+  (`crystal-combine-pdf assemble file1.pdf file2.pdf …`).
+* **v0.4** — encryption support (PDF passwords) for ISO 27001
+  compliance use cases.
+* **v0.5+** — PAdES-style signatures.
+
+== Installation
+
+Add to your `shard.yml`:
+
+[source,yaml]
+----
+dependencies:
+  crystal-combine-pdf:
+    github: aloli-crystal/crystal-combine-pdf
+    version: "~> 0.1"
+----
+
+then run `shards install`.
+
+For the CLI:
+
+[source,shell]
+----
+git clone https://github.com/aloli-crystal/crystal-combine-pdf
+cd crystal-combine-pdf
+shards build --release
+cp bin/crystal-combine-pdf ~/bin/   # or use crystal-bin-installer
+----
+
+== CLI
+
+[source,shell]
+----
+# Number every page, format "N/T" in the bottom-right corner.
+crystal-combine-pdf number booklet.pdf
+
+# Same, with intra-partition marks. Partition sizes are given in
+# 1-based page order — the sum must equal the total page count.
+# Here: pages 1-4 = partition 1 (so each gets "1/4" through "4/4"),
+# pages 5-6 = partition 2, page 7 = partition 3 (single-page → no
+# intra-partition mark by default).
+crystal-combine-pdf number booklet.pdf --partitions 4,2,1
+
+# Skip the cover (page 1) so it stays untouched.
+crystal-combine-pdf number booklet.pdf --skip 1
+
+# Custom format and red colour.
+crystal-combine-pdf number booklet.pdf \
+  --global-format "Page %page% of %total%" \
+  --partition-format "(%page% / %total%)" \
+  --color "0.7,0.0,0.0" \
+  --font-size 12
+----
+
+=== Options
+
+[cols="1,3"]
+|===
+| Option | Description
+
+| `-o FILE`, `--output FILE`
+| Output path. Defaults to `<input>-numbered.pdf` next to the input.
+
+| `--partitions N,N,…`
+| Comma-separated list of partition sizes, in 1-based page order. Sum
+  must equal the PDF page count.
+
+| `--skip PAGES`
+| Comma-separated list of 1-based page indices to leave un-numbered
+  (typical: `--skip 1` to spare the cover).
+
+| `--font-size SIZE`
+| Point size of the rendered numbers. Default 10.
+
+| `--margin PT`
+| Inset from the page edge, in points. Default 24.
+
+| `--color R,G,B`
+| RGB triplet, components 0.0–1.0. Default `0.2,0.2,0.2`.
+
+| `--global-format FMT`
+| Format string for the global page number. Placeholders: `%page%`,
+  `%total%`. Default `"%page%/%total%"`.
+
+| `--partition-format FMT`
+| Format string for the intra-partition number. Same placeholders.
+  Default `"%page%/%total%"`.
+
+| `--show-single-partitions`
+| Render the intra-partition number even when the partition has a
+  single page. Off by default.
+
+| `-h`, `--help`, `-v`, `--version`
+| Standard.
+|===
+
+== API
+
+[source,crystal]
+----
+require "crystal-combine-pdf"
+
+CombinePDF.number(
+  input: "booklet.pdf",
+  output: "booklet-numbered.pdf",
+  partitions: [4, 2, 1],
+  options: CombinePDF::Options.new(
+    font_size: 11.0,
+    color: {0.2, 0.2, 0.2},
+    margin: 24.0,
+    skip_pages: [1],
+  ),
+)
+----
+
+== Limitations (v0.1)
+
+* No multi-PDF merging yet — feed an already-assembled PDF.
+* Numbering is rendered with the standard Type1 `Helvetica` (no
+  embedded font, no Unicode beyond ASCII digits + `/`).
+* The output PDF uses an **incremental update** (PDF spec § 7.5.6).
+  All real-world PDF readers handle this; only `crystal-pdf::Reader`
+  v0.3.3 itself does not (a fix is staged for v0.3.4).
+
+== Development
+
+[source,shell]
+----
+shards install
+crystal spec
+bin/ameba
+crystal tool format src/ spec/
+----
+
+== License
+
+MIT — see link:LICENSE[LICENSE].

@@ -1,0 +1,38 @@
+name: crystal-combine-pdf
+version: 0.1.0
+
+description: |
+  PDF page numbering and (eventually) multi-PDF merging in pure
+  Crystal. Designed for booklet assembly use cases (music score
+  collections, course handouts, etc.) where the page numbering must
+  honour the actual page format (A4, Letter, A3) and where multi-page
+  partitions inside the booklet should carry their own intra-partition
+  numbering ("1/2", "2/2") in addition to the global page number.
+
+  Inspired by the Ruby gem combine_pdf — fixes the US Letter
+  hardcoding bug of `combine_pdf.number_pages` and adds support for
+  partition-aware intra-numbering.
+
+authors:
+  - Philippe Nénert <philippe@aloli.fr>
+
+license: MIT
+
+# Pour le développement local, remplacer par :
+#   crystal-pdf:
+#     path: ../crystal-pdf
+dependencies:
+  crystal-pdf:
+    github: aloli-crystal/crystal-pdf
+    version: "~> 0.3"
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: "~> 1.6"
+
+targets:
+  crystal-combine-pdf:
+    main: src/cli.cr
+
+crystal: ">= 1.19.0"

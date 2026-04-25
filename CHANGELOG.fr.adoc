@@ -1,0 +1,39 @@
+= Journal des modifications
+:toc: left
+:toc-title: Versions
+:toclevels: 2
+
+== v0.1.0 — 2026-04-25
+
+Première version publique. Numérotation de pages PDF en Crystal pur,
+conçue pour les cas d'usage d'assemblage de livret (recueils de
+partitions musicales, fascicules de cours, …). Inspirée de la gem
+Ruby https://github.com/boazsegev/combine_pdf[combine_pdf] — corrige
+ses coordonnées hardcodées US Letter et ajoute la numérotation
+*intra-partition*, que la gem amont ne supporte pas.
+
+* **Numérotation globale** en bas à droite, format personnalisable
+  via `Options#global_format` (substituts `%page%` et `%total%`,
+  défaut `"%page%/%total%"`).
+* **Numérotation intra-partition** en haut à gauche, format
+  personnalisable via `Options#partition_format`. Affichée
+  uniquement quand la partition fait plus d'une page (configurable
+  via `hide_partition_when_single`).
+* **A4-aware**, Letter-aware, A3-aware : coordonnées calculées à
+  partir de la `MediaBox` réelle de chaque page, sans drapeau par
+  format.
+* Option **pages à exclure** (ex. `--skip 1` pour laisser la
+  couverture intacte).
+* Sous-commande CLI `number` avec drapeaux courts et longs pour
+  toutes les options.
+* API : `CombinePDF.number(input, output, partitions, options)`.
+* README bilingue (EN + FR), CHANGELOG bilingue, lint ameba, CI
+  GitHub Actions.
+
+== Feuille de route
+
+* **v0.2** — fusion multi-PDF.
+* **v0.3** — assemblage de livret (merge + numérotation en une
+  commande).
+* **v0.4** — chiffrement.
+* **v0.5+** — signatures PAdES.

@@ -1,0 +1,37 @@
+= Changelog
+:toc: left
+:toc-title: Versions
+:toclevels: 2
+
+== v0.1.0 — 2026-04-25
+
+First public release. Pure-Crystal PDF page numbering, designed for
+booklet assembly use cases (music score collections, course handouts,
+…). Inspired by the Ruby gem
+https://github.com/boazsegev/combine_pdf[combine_pdf] — fixes its
+US Letter coordinate hardcoding and adds *partition-aware*
+intra-numbering, which the upstream gem does not support.
+
+* **Global page numbering** in the bottom-right corner, format
+  customisable via `Options#global_format` (placeholders `%page%`
+  and `%total%`, default `"%page%/%total%"`).
+* **Intra-partition numbering** in the top-left corner, format
+  customisable via `Options#partition_format`. Shown only when the
+  partition spans more than one page (configurable via
+  `hide_partition_when_single`).
+* **A4-aware**, Letter-aware, A3-aware: coordinates are derived
+  from each page's actual `MediaBox`, no per-format flag needed.
+* **Skip pages** option (e.g. `--skip 1` to leave the cover
+  unmarked).
+* CLI sub-command `number` with short and long flags for every
+  option.
+* API: `CombinePDF.number(input, output, partitions, options)`.
+* Bilingual README (EN + FR), CHANGELOG bilingue, ameba lint, CI
+  GitHub Actions.
+
+== Roadmap
+
+* **v0.2** — multi-PDF merging.
+* **v0.3** — booklet assembly (merge + number in one shot).
+* **v0.4** — encryption.
+* **v0.5+** — PAdES signatures.
