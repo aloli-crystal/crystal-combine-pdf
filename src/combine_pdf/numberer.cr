@@ -20,7 +20,7 @@ module CombinePDF
   #
   # The watermark is implemented as a Type1 standard `Helvetica` text
   # block (`q … BT … ET … Q`) appended via
-  # `PDF::ReaderPage#add_content_stream`. No font embedding, no
+  # `::PDF::ReaderPage#add_content_stream`. No font embedding, no
   # encoding pitfalls — only ASCII digits and `/`.
   class Numberer
     @options : Options
@@ -36,7 +36,7 @@ module CombinePDF
     # the result to `output`. Raises `ArgumentError` when the
     # partition sizes don't sum to the total page count.
     def apply(input : String, output : String) : Nil
-      reader = PDF::Reader.open(input)
+      reader = ::PDF::Reader.open(input)
       total = reader.page_count
 
       if (parts = @partitions)

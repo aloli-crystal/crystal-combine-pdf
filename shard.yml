@@ -1,17 +1,25 @@
 name: crystal-combine-pdf
-version: 0.2.0
+version: 1.0.31.1
 
 description: |
-  PDF page numbering and (eventually) multi-PDF merging in pure
-  Crystal. Designed for booklet assembly use cases (music score
-  collections, course handouts, etc.) where the page numbering must
-  honour the actual page format (A4, Letter, A3) and where multi-page
-  partitions inside the booklet should carry their own intra-partition
-  numbering ("1/2", "2/2") in addition to the global page number.
+  ISO-compatible Crystal port of the Ruby gem `combine_pdf` v1.0.31
+  (April 2025). Provides the canonical `CombinePDF.new` /
+  `CombinePDF.load` / `CombinePDF.parse` entry points plus the
+  `CombinePDF::PDF` instance API (`<<`, `>>`, `insert`, `remove`,
+  `pages`, `page_count`, `new_page`, `title=`, `author=`,
+  `number_pages`, `save`, `to_pdf`).
 
-  Inspired by the Ruby gem combine_pdf — fixes the US Letter
-  hardcoding bug of `combine_pdf.number_pages` and adds support for
-  partition-aware intra-numbering.
+  Crystal-specific bonuses, kept from v0.2 :
+  * `CombinePDF.merge`    — one-shot multi-PDF concatenation
+  * `CombinePDF.number`   — page numbering with A4/Letter awareness
+                            and partition-aware intra-numbering
+                            (fixes the US Letter hardcoding bug
+                            of the Ruby gem's `number_pages`)
+  * `CombinePDF.assemble` — merge + number in a single call
+                            (booklet of partitions use case)
+
+  Versioning: 4th digit increments per additive iteration on top of
+  the synchronised Ruby gem version.
 
 authors:
   - Philippe Nénert <philippe@aloli.fr>

@@ -2,22 +2,54 @@
 :toc: macro
 :toclevels: 2
 
-Post-traitement de PDF en Crystal pur. La v0.1 livre la
-**numérotation des pages** qui respecte le format réel de la page
-(A4, Letter, A3, …) et qui prend en charge la numérotation
-*intra-partition* — celle qui permet à un livret de partitions
-musicales d'afficher « 1/4 », « 2/4 » sur une partition de 4 pages
-pendant que le « 3/12 » global reste en bas à droite.
+Portage Crystal ISO-compatible de la gem Ruby
+https://github.com/boazsegev/combine_pdf[`combine_pdf`] v1.0.31.
+Syntaxe drop-in pour les utilisateurs Ruby — `CombinePDF.new`,
+`CombinePDF.load`, `CombinePDF.parse` plus l'API d'instance
+`<<` / `>>` / `insert` / `remove` / `save` / `to_pdf` /
+`number_pages` sont câblés et se comportent à l'identique.
 
-Inspiré de la gem Ruby
-https://github.com/boazsegev/combine_pdf[combine_pdf] — corrige le
-bug de coordonnées hardcodées US Letter de `combine_pdf.number_pages`
-et ajoute la numérotation intra-partition, que la gem amont ne
-supporte pas.
+Au-dessus de la gem nous livrons deux bonus spécifiques Crystal :
+
+* **Numérotation des pages A4-aware** — corrige le bug amont de
+  coordonnées hardcodées US Letter de `number_pages` ; les
+  coordonnées sont calculées depuis la `MediaBox` réelle de chaque
+  page.
+* **Numérotation intra-partition** — celle qui permet à un livret
+  de partitions musicales d'afficher « 1/4 », « 2/4 » sur une
+  partition de 4 pages pendant que le « 3/12 » global reste en
+  bas à droite.
 
 🇬🇧 Read this in English: link:README.adoc[README.adoc]
 
 toc::[]
+
+== Démarrage rapide (API ISO, miroir de la gem Ruby)
+
+[source,crystal]
+----
+require "crystal-combine-pdf"
+
+# Construire un PDF vierge
+pdf = CombinePDF.new
+
+# Charger + ajouter deux PDF existants
+pdf << CombinePDF.load("partition1.pdf")
+pdf << CombinePDF.load("partition2.pdf")
+
+# Optionnel : préfixer une page de garde
+pdf >> CombinePDF.load("couverture.pdf")
+
+# Optionnel : métadonnées
+pdf.title  = "Recueil de partitions"
+pdf.author = "Philippe Nénert"
+
+# Optionnel : numéroter les pages (bonus spécifique Crystal)
+pdf.number_pages
+
+# Sauvegarder
+pdf.save("livret.pdf")
+----
 
 == Pourquoi
 
@@ -52,14 +84,17 @@ géométrie réelle de chaque `MediaBox`.
 
 == Feuille de route
 
-* **v0.2** — ✅ fusion multi-PDF + sous-commande `assemble`
-  (workflow livret : merge + numérotation en une commande).
-* **v0.3** — déduplication des ressources (éviter d'embarquer N
-  fois la même police lors de la fusion), `insert(position, data)`,
-  `remove(page_index)`.
-* **v0.4** — chiffrement (mots de passe PDF) pour les cas d'usage
-  conformité ISO 27001.
-* **v0.5+** — signatures de type PAdES.
+* **v1.0.31.1** — ✅ API ISO du module + API d'instance `PDF`
+  (`<<`, `>>`, `insert`, `remove`, `pages`, `page_count`,
+  `new_page`, `title=`, `author=`, `number_pages`, `save`,
+  `to_pdf`).
+* **v1.0.31.2** — classe `Page` (`textbox`, `rotate_*`,
+  `mediabox`, `secure_injection`, …), `stamp_page` pour
+  filigranes/numérotation par composition de pages plutôt que
+  mise à jour incrémentale.
+* **v1.0.31.3** — chiffrement (40/128/256 bits), `secured?`.
+* **v1.0.31.4** — signatures de type PAdES.
+* (En continu) — déduplication des ressources lors de la fusion.
 
 == Installation
 
@@ -70,7 +105,7 @@ Ajouter au `shard.yml` :
 dependencies:
   crystal-combine-pdf:
     github: aloli-crystal/crystal-combine-pdf
-    version: "~> 0.1"
+    version: "~> 1.0.31"
 ----
 
 puis lancer `shards install`.
@@ -180,10 +215,40 @@ crystal-combine-pdf number livret.pdf \
 
 == API
 
+=== API ISO (miroir de la gem Ruby)
+
 [source,crystal]
 ----
 require "crystal-combine-pdf"
 
+# Points d'entrée du module
+CombinePDF.new                  # => CombinePDF::PDF (vide)
+CombinePDF.load(path : String)  # => CombinePDF::PDF (depuis fichier)
+CombinePDF.parse(data : Bytes)  # => CombinePDF::PDF (depuis octets)
+
+# API d'instance
+pdf << other        # ajoute en fin (chemin ou PDF) — chaînable
+pdf >> other        # ajoute en tête (chemin ou PDF) — chaînable
+pdf.insert(position, other)  # position : Int32 (-1 = fin, 0 = début)
+pdf.remove(page_index)       # indices négatifs pris en charge
+pdf.pages                    # => Array(::PDF::Objects::Reference)
+pdf.page_count               # => Int32
+pdf.new_page(mediabox = [0, 0, 612, 792], location = -1)
+pdf.title = "…"
+pdf.author = "…"
+pdf.number_pages(partitions, options)  # en place
+pdf.save("sortie.pdf")
+pdf.to_pdf  # => Bytes
+----
+
+=== Helpers bonus spécifiques Crystal
+
+[source,crystal]
+----
+# Concaténation multi-PDF en une commande
+CombinePDF.merge(["a.pdf", "b.pdf"], "sortie.pdf")
+
+# Numéroter un PDF déjà assemblé sur disque
 CombinePDF.number(
   input: "livret.pdf",
   output: "livret-numbered.pdf",
@@ -195,9 +260,17 @@ CombinePDF.number(
     skip_pages: [1],
   ),
 )
+
+# Assemblage de livret bout-en-bout (fusion + numérotation avec
+# tailles de partitions auto-détectées — chaque fichier d'entrée =
+# une partition)
+CombinePDF.assemble(
+  inputs: ["partition1.pdf", "partition2.pdf", "partition3.pdf"],
+  output: "livret.pdf",
+)
 ----
 
-== Limitations (v0.2)
+== Limitations (v1.0.31.1)
 
 * Pas de déduplication des ressources communes lors de la fusion —
   une police ou image embarquée dans N PDF source est copiée N fois

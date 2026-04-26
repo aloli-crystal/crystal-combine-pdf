@@ -2,20 +2,53 @@
 :toc: macro
 :toclevels: 2
 
-PDF post-processing in pure Crystal. v0.1 ships **page numbering**
-that honours the actual page format (A4, Letter, A3, …) and supports
-*partition-aware* intra-numbering — the one that lets a music-score
-booklet show "1/4", "2/4" on a 4-page partition while the global
-"3/12" stays in the bottom-right corner.
+ISO-compatible Crystal port of the Ruby gem
+https://github.com/boazsegev/combine_pdf[`combine_pdf`] v1.0.31.
+Drop-in syntax for Ruby users — `CombinePDF.new`,
+`CombinePDF.load`, `CombinePDF.parse` plus the `<<` / `>>` /
+`insert` / `remove` / `save` / `to_pdf` / `number_pages` instance
+API are wired up and behave the same way.
 
-Inspired by the Ruby gem
-https://github.com/boazsegev/combine_pdf[combine_pdf] — fixes the
-US Letter hardcoding bug of `combine_pdf.number_pages` and adds
-intra-partition numbering, which the upstream gem does not support.
+On top of that we ship two Crystal-specific bonuses on top of the
+gem :
+
+* **A4-aware page numbering** — fixes the upstream US Letter
+  hardcoding bug of `number_pages` ; coordinates are derived from
+  each page's actual `MediaBox`.
+* **Partition-aware intra-numbering** — the one that lets a
+  music-score booklet show "1/4", "2/4" on a 4-page partition
+  while the global "3/12" stays in the bottom-right corner.
 
 🇫🇷 Lisez ce document en français : link:README.fr.adoc[README.fr.adoc]
 
 toc::[]
+
+== Quickstart (ISO API, mirrors the Ruby gem)
+
+[source,crystal]
+----
+require "crystal-combine-pdf"
+
+# Build a fresh PDF
+pdf = CombinePDF.new
+
+# Load + append two existing PDFs
+pdf << CombinePDF.load("partition1.pdf")
+pdf << CombinePDF.load("partition2.pdf")
+
+# Optional: prepend a cover page
+pdf >> CombinePDF.load("cover.pdf")
+
+# Optional: metadata
+pdf.title  = "Recueil de partitions"
+pdf.author = "Philippe Nénert"
+
+# Optional: number the pages (Crystal-specific bonus)
+pdf.number_pages
+
+# Save
+pdf.save("livret.pdf")
+----
 
 == Why
 
@@ -49,14 +82,16 @@ geometry read from the actual `MediaBox` of every page.
 
 == Roadmap
 
-* **v0.2** — ✅ multi-PDF merging + `assemble` sub-command (booklet
-  workflow merge+number in one shot).
-* **v0.3** — resource deduplication (avoid embedding the same font
-  N times when merging N PDFs sharing it), `insert(location, data)`,
-  `remove(page_index)`.
-* **v0.4** — encryption support (PDF passwords) for ISO 27001
-  compliance use cases.
-* **v0.5+** — PAdES-style signatures.
+* **v1.0.31.1** — ✅ ISO-compatible module + `PDF` instance API
+  (`<<`, `>>`, `insert`, `remove`, `pages`, `page_count`,
+  `new_page`, `title=`, `author=`, `number_pages`, `save`,
+  `to_pdf`).
+* **v1.0.31.2** — `Page` wrapper class (`textbox`, `rotate_*`,
+  `mediabox`, `secure_injection`, …), `stamp_page` for watermarks
+  and page numbers via composition rather than incremental update.
+* **v1.0.31.3** — encryption (40/128/256 bits), `secured?`.
+* **v1.0.31.4** — PAdES-style signatures.
+* (Ongoing) — resource deduplication when merging.
 
 == Installation
 
@@ -67,7 +102,7 @@ Add to your `shard.yml`:
 dependencies:
   crystal-combine-pdf:
     github: aloli-crystal/crystal-combine-pdf
-    version: "~> 0.1"
+    version: "~> 1.0.31"
 ----
 
 then run `shards install`.
@@ -174,10 +209,40 @@ crystal-combine-pdf number booklet.pdf \
 
 == API
 
+=== ISO-compatible API (mirrors the Ruby gem)
+
 [source,crystal]
 ----
 require "crystal-combine-pdf"
 
+# Module entry points
+CombinePDF.new                  # => CombinePDF::PDF (empty)
+CombinePDF.load(path : String)  # => CombinePDF::PDF (from file)
+CombinePDF.parse(data : Bytes)  # => CombinePDF::PDF (from bytes)
+
+# Instance API
+pdf << other        # append (path or PDF) — chainable
+pdf >> other        # prepend (path or PDF) — chainable
+pdf.insert(location, other)  # location: Int32 (-1 = append, 0 = prepend)
+pdf.remove(page_index)       # negative indices supported
+pdf.pages                    # => Array(::PDF::Objects::Reference)
+pdf.page_count               # => Int32
+pdf.new_page(mediabox = [0, 0, 612, 792], location = -1)
+pdf.title = "…"
+pdf.author = "…"
+pdf.number_pages(partitions, options)  # in-place
+pdf.save("out.pdf")
+pdf.to_pdf  # => Bytes
+----
+
+=== Crystal-specific bonus helpers
+
+[source,crystal]
+----
+# One-shot multi-PDF concatenation
+CombinePDF.merge(["a.pdf", "b.pdf"], "out.pdf")
+
+# Number an already-assembled PDF on disk
 CombinePDF.number(
   input: "booklet.pdf",
   output: "booklet-numbered.pdf",
@@ -189,9 +254,16 @@ CombinePDF.number(
     skip_pages: [1],
   ),
 )
+
+# End-to-end booklet assembly (merge + number with auto-detected
+# partition sizes — each input file = one partition)
+CombinePDF.assemble(
+  inputs: ["partition1.pdf", "partition2.pdf", "partition3.pdf"],
+  output: "livret.pdf",
+)
 ----
 
-== Limitations (v0.2)
+== Limitations (v1.0.31.1)
 
 * No deduplication of common resources when merging — a font or
   image embedded in N source PDFs is copied N times to the output.

@@ -3,6 +3,83 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.1 — 2026-04-26
+
+**Compatibilité ISO avec la gem Ruby `combine_pdf` v1.0.31** — les
+points d'entrée canoniques et l'API d'instance `PDF` reflètent
+désormais la gem amont un-pour-un, ce qui permet aux utilisateurs
+Ruby de porter leurs extraits verbatim. Le versioning adopte le
+schéma `<version-gem>.<itération-locale>` (le 4ᵉ chiffre s'incrémente
+à chaque itération additive côté Crystal).
+
+=== Points d'entrée du module
+
+[source,crystal]
+----
+pdf = CombinePDF.new                 # ⇄ CombinePDF.new
+pdf << CombinePDF.load("a.pdf")      # ⇄ CombinePDF.load(path)
+pdf << CombinePDF.parse(some_bytes)  # ⇄ CombinePDF.parse(data)
+----
+
+=== API d'instance `CombinePDF::PDF`
+
+* `pdf << other` — ajoute en fin (chemin ou PDF), chaînable
+* `pdf >> other` — ajoute en tête (chemin ou PDF), chaînable
+* `pdf.insert(position, other)` — insère à l'index donné
+  (`-1` = fin, `0` = début)
+* `pdf.remove(page_index)` — retire une page (indices négatifs
+  pris en charge)
+* `pdf.pages` — tableau des références de pages
+* `pdf.page_count` — nombre de pages
+* `pdf.new_page(mediabox, location)` — ajoute/insère une page
+  blanche (mediabox par défaut = US Letter `[0, 0, 612, 792]`)
+* `pdf.title=` / `pdf.author=` — écrits dans `/Info` à la
+  sauvegarde
+* `pdf.number_pages(partitions, options)` — numérotation en place
+  (livret-aware)
+* `pdf.save(path)` — écrit sur disque
+* `pdf.to_pdf` — renvoie le PDF en `Bytes`
+
+=== Bonus spécifiques Crystal (conservés depuis v0.2)
+
+* `CombinePDF.merge(inputs, output)`
+* `CombinePDF.number(input, output, partitions, options)`
+* `CombinePDF.assemble(inputs, output, options)` — fusion +
+  numérotation en une commande
+
+=== Notes d'implémentation
+
+* `CombinePDF::PDF` enveloppe le `Merger` existant ; les opérations
+  d'ordonnancement (insert/prepend/remove) réorganisent
+  `merger.page_refs` en place — pas de churn dans le pool d'objets.
+* `Merger#write` est désormais idempotent : un instantané de
+  `@objects` et `@next_id` est pris à l'entrée et restauré à la
+  sortie, donc appeler `save` puis `to_pdf` (ou l'inverse) sur la
+  même instance produit des flux d'octets déterministes.
+* Deux nouvelles propriétés sur `Merger` — `metadata_title`,
+  `metadata_author` — alimentent le dictionnaire `/Info` quand les
+  setters de haut niveau `PDF#title=` et `PDF#author=` sont
+  utilisés.
+* Toutes les références internes à la shard `crystal-pdf` utilisent
+  désormais la forme pleinement qualifiée `::PDF::*` pour éviter
+  d'être masquées par la nouvelle classe `CombinePDF::PDF`.
+
+=== Tests
+
+30 exemples, tous verts (13 d'intégration historiques + 17
+nouveaux specs de compatibilité ISO couvrant `<<`, `>>`, `insert`,
+`remove`, `pages`, `page_count`, `new_page`, `title=`/`author=`,
+`save`, `to_pdf`, `number_pages`, et un workflow livret bout-en-bout
+qui reproduit l'exemple du README amont).
+
+=== Feuille de route
+
+* **v1.0.31.2** — classe `Page` (`textbox`, `rotate_*`,
+  `mediabox`, …), `stamp_page` pour filigranes/numérotation par
+  composition de pages plutôt que mise à jour incrémentale.
+* **v1.0.31.3** — chiffrement (40/128/256 bits) et `secured?`.
+* **v1.0.31.4** — signatures PAdES.
+
 == v0.2.0 — 2026-04-26
 
 **Fusion multi-PDF livrée — la fonctionnalité phare.** C'est ce qui

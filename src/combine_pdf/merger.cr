@@ -5,7 +5,7 @@ module CombinePDF
   # `combine_pdf` (Ruby) and `pypdf` (Python) :
   #
   # 1. For each source PDF, read every indirect object via
-  #    `PDF::Reader`.
+  #    `::PDF::Reader`.
   # 2. Allocate a fresh object number for every source object so
   #    objects coming from different files cannot collide.
   # 3. Walk every object and rewrite its `Objects::Reference`
@@ -21,8 +21,19 @@ module CombinePDF
   # we have real-world feedback.
   class Merger
     @next_id : Int32 = 1
-    @objects : Array(PDF::Objects::Indirect) = [] of PDF::Objects::Indirect
-    @page_refs : Array(PDF::Objects::Reference) = [] of PDF::Objects::Reference
+    @objects : Array(::PDF::Objects::Indirect) = [] of ::PDF::Objects::Indirect
+
+    # Ordered list of references to page objects that will land in
+    # the final /Pages tree. Exposed as a getter so the high-level
+    # `CombinePDF::PDF` class can reorder, snapshot, clear, and
+    # re-append entries (insert / remove operations).
+    getter page_refs : Array(::PDF::Objects::Reference) = [] of ::PDF::Objects::Reference
+
+    # Document metadata. When set, override the default `/Info` dict
+    # entries during `#write`. Used by `CombinePDF::PDF#title=` and
+    # `#author=` to surface user-set values in the output PDF.
+    property metadata_title : String? = nil
+    property metadata_author : String? = nil
 
     def initialize
     end
@@ -38,7 +49,7 @@ module CombinePDF
     # Reads `path`, renumbers every object, and queues its pages
     # for the final tree.
     def add(path : String) : Nil
-      reader = PDF::Reader.open(path)
+      reader = ::PDF::Reader.open(path)
 
       # Force the lazy reader to materialise every object referenced
       # by the xref. `Reader#objects` is a cache populated on demand,
@@ -46,9 +57,9 @@ module CombinePDF
       # touched by `build_page_tree` (catalog, pages tree, page
       # dicts) — fonts, images and content streams would be missing
       # and the merged PDF would have dangling references.
-      total_size = reader.@trailer["Size"]?.try(&.as?(PDF::Objects::Number)).try(&.to_i64.to_i32) || 0
+      total_size = reader.@trailer["Size"]?.try(&.as?(::PDF::Objects::Number)).try(&.to_i64.to_i32) || 0
       (1...total_size).each do |id|
-        reader.resolve(PDF::Objects::Reference.new(id))
+        reader.resolve(::PDF::Objects::Reference.new(id))
       end
 
       # Allocate a fresh ID for every object in this source.
@@ -68,14 +79,14 @@ module CombinePDF
         # Strip any /Parent reference — page parents will be rewritten
         # to point at OUR /Pages root once it's allocated. Without
         # this, pages would still point at the source's pages tree.
-        if (dict = new_value.as?(PDF::Objects::Dictionary)) && dict["Type"]?.try(&.as(PDF::Objects::Name).value) == "Page"
+        if (dict = new_value.as?(::PDF::Objects::Dictionary)) && dict["Type"]?.try(&.as(::PDF::Objects::Name).value) == "Page"
           dict.delete("Parent")
         end
-        @objects << PDF::Objects::Indirect.new(new_id, obj.generation, new_value)
+        @objects << ::PDF::Objects::Indirect.new(new_id, obj.generation, new_value)
       end
 
       page_old_ids.each do |old_id|
-        @page_refs << PDF::Objects::Reference.new(id_map[old_id])
+        @page_refs << ::PDF::Objects::Reference.new(id_map[old_id])
       end
     end
 
@@ -86,38 +97,63 @@ module CombinePDF
     end
 
     # Same as `#save` but to an arbitrary IO.
+    #
+    # Idempotent: a snapshot of `@objects.size` and `@next_id` is
+    # taken on entry and restored on exit. Without this, calling
+    # `write` (or `to_pdf` / `save`) more than once on the same
+    # `Merger` would accumulate orphan `/Pages`, `/Catalog`, and
+    # `/Info` indirect objects, each call producing a slightly
+    # different (and bloated) byte stream.
     def write(io : IO) : Nil
+      saved_objects_size = @objects.size
+      saved_next_id = @next_id
+      begin
+        write_internal(io)
+      ensure
+        @objects = @objects[0, saved_objects_size]
+        @next_id = saved_next_id
+      end
+    end
+
+    private def write_internal(io : IO) : Nil
       pages_id = allocate_id
       catalog_id = allocate_id
       info_id = allocate_id
 
       # Patch every page dict to point at the new pages tree.
-      pages_ref = PDF::Objects::Reference.new(pages_id)
+      pages_ref = ::PDF::Objects::Reference.new(pages_id)
       @page_refs.each do |page_ref|
         page_obj = @objects.find!(&.object_number.==(page_ref.object_number))
-        page_dict = page_obj.value.as(PDF::Objects::Dictionary)
+        page_dict = page_obj.value.as(::PDF::Objects::Dictionary)
         page_dict["Parent"] = pages_ref
       end
 
       # /Pages tree: a single flat node containing every page.
-      pages_dict = PDF::Objects::Dictionary.new
-      pages_dict["Type"] = PDF::Objects::Name.new("Pages")
-      kids = PDF::Objects::Array.new
+      pages_dict = ::PDF::Objects::Dictionary.new
+      pages_dict["Type"] = ::PDF::Objects::Name.new("Pages")
+      kids = ::PDF::Objects::Array.new
       @page_refs.each { |ref| kids << ref }
       pages_dict["Kids"] = kids
-      pages_dict["Count"] = PDF::Objects::Number.new(@page_refs.size)
-      @objects << PDF::Objects::Indirect.new(pages_id, pages_dict)
+      pages_dict["Count"] = ::PDF::Objects::Number.new(@page_refs.size)
+      @objects << ::PDF::Objects::Indirect.new(pages_id, pages_dict)
 
       # /Catalog
-      catalog_dict = PDF::Objects::Dictionary.new
-      catalog_dict["Type"] = PDF::Objects::Name.new("Catalog")
+      catalog_dict = ::PDF::Objects::Dictionary.new
+      catalog_dict["Type"] = ::PDF::Objects::Name.new("Catalog")
       catalog_dict["Pages"] = pages_ref
-      @objects << PDF::Objects::Indirect.new(catalog_id, catalog_dict)
+      @objects << ::PDF::Objects::Indirect.new(catalog_id, catalog_dict)
 
-      # /Info (minimal)
-      info_dict = PDF::Objects::Dictionary.new
-      info_dict["Producer"] = PDF::Objects::Str.new("crystal-combine-pdf #{CombinePDF::VERSION}")
-      @objects << PDF::Objects::Indirect.new(info_id, info_dict)
+      # /Info — Producer is always set ; Title/Author only when the
+      # caller surfaced them via `CombinePDF::PDF#title=` / `#author=`.
+      info_dict = ::PDF::Objects::Dictionary.new
+      info_dict["Producer"] = ::PDF::Objects::Str.new("crystal-combine-pdf #{CombinePDF::VERSION}")
+      if t = @metadata_title
+        info_dict["Title"] = ::PDF::Objects::Str.new(t)
+      end
+      if a = @metadata_author
+        info_dict["Author"] = ::PDF::Objects::Str.new(a)
+      end
+      @objects << ::PDF::Objects::Indirect.new(info_id, info_dict)
 
       MergedDocumentWriter.new(@objects, catalog_id, info_id).write(io)
     end
@@ -133,27 +169,27 @@ module CombinePDF
     # the same class (no in-place mutation — we may merge several
     # sources that share parsed objects via the cache and we don't
     # want them to interfere).
-    private def remap(obj : PDF::Objects::Base, id_map : Hash(Int32, Int32)) : PDF::Objects::Base
+    private def remap(obj : ::PDF::Objects::Base, id_map : Hash(Int32, Int32)) : ::PDF::Objects::Base
       case obj
-      when PDF::Objects::Reference
+      when ::PDF::Objects::Reference
         new_id = id_map[obj.object_number]?
         if new_id
-          PDF::Objects::Reference.new(new_id, obj.generation)
+          ::PDF::Objects::Reference.new(new_id, obj.generation)
         else
           # Reference to an object that wasn't in the source's
           # objects map (shouldn't happen on a well-formed PDF, but
           # we leave it as-is rather than crash).
           obj
         end
-      when PDF::Objects::Dictionary
-        new_dict = PDF::Objects::Dictionary.new
+      when ::PDF::Objects::Dictionary
+        new_dict = ::PDF::Objects::Dictionary.new
         obj.each { |k, v| new_dict[k] = remap(v, id_map) }
         new_dict
-      when PDF::Objects::Array
-        new_arr = PDF::Objects::Array.new
+      when ::PDF::Objects::Array
+        new_arr = ::PDF::Objects::Array.new
         obj.size.times { |i| new_arr << remap(obj.unsafe_fetch(i), id_map) }
         new_arr
-      when PDF::Objects::Stream
+      when ::PDF::Objects::Stream
         # Stream has a metadata dict (which may contain references)
         # plus an opaque byte payload (which doesn't). Remap the
         # dict, keep the data verbatim.
@@ -165,11 +201,11 @@ module CombinePDF
         # and crash with "Invalid header". Strip the filter so the
         # output stream is read back as plain text. We also drop
         # /Length, which the writer rewrites from `data.size`.
-        new_dict = remap(obj.dictionary, id_map).as(PDF::Objects::Dictionary)
+        new_dict = remap(obj.dictionary, id_map).as(::PDF::Objects::Dictionary)
         new_dict.delete("Filter")
         new_dict.delete("DecodeParms")
         new_dict.delete("Length")
-        PDF::Objects::Stream.new(new_dict, obj.data)
+        ::PDF::Objects::Stream.new(new_dict, obj.data)
       else
         # Number, Str, Name, Boolean, Null — no nested references.
         obj

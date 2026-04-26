@@ -5,6 +5,7 @@ require "./combine_pdf/options"
 require "./combine_pdf/numberer"
 require "./combine_pdf/merged_document_writer"
 require "./combine_pdf/merger"
+require "./combine_pdf/pdf"
 
 # CombinePDF — PDF post-processing in pure Crystal.
 #
@@ -52,6 +53,42 @@ require "./combine_pdf/merger"
 # )
 # ```
 module CombinePDF
+  # ─────────────────────────────────────────────────────────────────
+  # ISO-compatible module entry points
+  #
+  # These mirror the Ruby gem `combine_pdf` v1.0.31 module API so
+  # examples from the upstream README work verbatim :
+  #
+  # ```
+  # pdf = CombinePDF.new
+  # pdf << CombinePDF.load("a.pdf")
+  # pdf << CombinePDF.load("b.pdf")
+  # pdf.save("merged.pdf")
+  # ```
+  # ─────────────────────────────────────────────────────────────────
+
+  # Returns a fresh, empty `PDF` ready to receive pages.
+  # Equivalent to `CombinePDF.new` in Ruby.
+  def self.new : PDF
+    PDF.new
+  end
+
+  # Loads a PDF file and returns it as a `PDF` instance.
+  # Equivalent to `CombinePDF.load(path)` in Ruby.
+  def self.load(path : String) : PDF
+    PDF.from_file(path)
+  end
+
+  # Parses raw PDF bytes (or a binary string) into a `PDF` instance.
+  # Equivalent to `CombinePDF.parse(data)` in Ruby.
+  def self.parse(data : Bytes | String) : PDF
+    PDF.from_data(data)
+  end
+
+  # ─────────────────────────────────────────────────────────────────
+  # Crystal-specific functional helpers (kept as bonuses)
+  # ─────────────────────────────────────────────────────────────────
+
   # Concatenates `inputs` into a single PDF written to `output`.
   # Pages are taken in the input order. Object IDs are renumbered
   # to avoid collisions between sources.
@@ -80,7 +117,7 @@ module CombinePDF
                     output : String,
                     options : Options = Options.new) : Nil
     # Auto-detect partition sizes by counting pages in each input.
-    partitions = inputs.map { |path| PDF::Reader.open(path).page_count }
+    partitions = inputs.map { |path| ::PDF::Reader.open(path).page_count }
 
     # Merge into a temp file, then number into the final output.
     tmp = File.tempname("ccp-assemble", ".pdf")

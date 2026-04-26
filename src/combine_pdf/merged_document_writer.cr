@@ -3,8 +3,8 @@ module CombinePDF
   # objects + a catalog reference + an info reference and writes
   # a complete, valid PDF.
   #
-  # We don't reuse `PDF::Writer::DocumentWriter` because it walks
-  # `PDF::Document#pages` (the in-memory pages added via
+  # We don't reuse `::PDF::Writer::DocumentWriter` because it walks
+  # `::PDF::Document#pages` (the in-memory pages added via
   # `Document#page`), which doesn't apply when we're stitching
   # together pages parsed from external sources.
   #
@@ -13,11 +13,11 @@ module CombinePDF
   # no incremental update mode. Plain PDF 1.7 with a classical
   # xref table.
   class MergedDocumentWriter
-    @objects : Array(PDF::Objects::Indirect)
+    @objects : Array(::PDF::Objects::Indirect)
     @catalog_id : Int32
     @info_id : Int32
 
-    def initialize(@objects : Array(PDF::Objects::Indirect),
+    def initialize(@objects : Array(::PDF::Objects::Indirect),
                    @catalog_id : Int32,
                    @info_id : Int32)
     end
@@ -53,7 +53,7 @@ module CombinePDF
     # numbered contiguously from 1 to N. Most readers tolerate
     # gaps but a contiguous xref is simplest and what we get
     # naturally from the merger's allocator.
-    private def build_xref(sorted : Array(PDF::Objects::Indirect),
+    private def build_xref(sorted : Array(::PDF::Objects::Indirect),
                            offsets : Hash(Int32, Int64)) : String
       total = sorted.size + 1 # + object 0 (free)
       String.build do |io|
@@ -71,7 +71,7 @@ module CombinePDF
       end
     end
 
-    private def build_trailer(sorted : Array(PDF::Objects::Indirect),
+    private def build_trailer(sorted : Array(::PDF::Objects::Indirect),
                               xref_offset : Int64) : String
       total = sorted.size + 1
       String.build do |io|

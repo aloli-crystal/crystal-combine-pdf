@@ -3,6 +3,80 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.1 — 2026-04-26
+
+**ISO compatibility with Ruby gem `combine_pdf` v1.0.31** — the
+canonical entry points and the `PDF` instance API now mirror the
+upstream gem one-to-one, so Ruby users can port their snippets
+verbatim. Versioning adopts the `<gem-version>.<our-iteration>`
+scheme (4th digit increments per additive Crystal-side iteration).
+
+=== Module entry points
+
+[source,crystal]
+----
+pdf = CombinePDF.new                 # ⇄ CombinePDF.new
+pdf << CombinePDF.load("a.pdf")      # ⇄ CombinePDF.load(path)
+pdf << CombinePDF.parse(some_bytes)  # ⇄ CombinePDF.parse(data)
+----
+
+=== `CombinePDF::PDF` instance API
+
+* `pdf << other` — append (path or PDF), chainable
+* `pdf >> other` — prepend (path or PDF), chainable
+* `pdf.insert(position, other)` — insert at index
+  (`-1` = append, `0` = prepend)
+* `pdf.remove(page_index)` — remove a page (negative indices
+  supported)
+* `pdf.pages` — array of page references
+* `pdf.page_count` — number of pages
+* `pdf.new_page(mediabox, location)` — append/insert a blank page
+  (default mediabox = US Letter `[0, 0, 612, 792]`)
+* `pdf.title=` / `pdf.author=` — written to `/Info` on save
+* `pdf.number_pages(partitions, options)` — in-place page
+  numbering (booklet-aware)
+* `pdf.save(path)` — write to disk
+* `pdf.to_pdf` — return the PDF as `Bytes`
+
+=== Crystal-specific bonuses (kept from v0.2)
+
+* `CombinePDF.merge(inputs, output)`
+* `CombinePDF.number(input, output, partitions, options)`
+* `CombinePDF.assemble(inputs, output, options)` — merge + number
+  in one shot
+
+=== Implementation notes
+
+* `CombinePDF::PDF` wraps the existing `Merger` ; ordering
+  operations (insert/prepend/remove) reorder `merger.page_refs`
+  in place — no object pool churn.
+* `Merger#write` is now idempotent: a snapshot of `@objects` and
+  `@next_id` is taken on entry and restored on exit, so calling
+  `save` then `to_pdf` (or vice-versa) on the same instance
+  produces deterministic byte streams.
+* Two new `Merger` properties — `metadata_title`, `metadata_author`
+  — feed the `/Info` dictionary when the high-level `PDF#title=`
+  and `PDF#author=` setters are used.
+* All internal references to the `crystal-pdf` shard now use the
+  fully-qualified `::PDF::*` form to avoid being shadowed by the
+  new `CombinePDF::PDF` class.
+
+=== Tests
+
+30 examples, all green (13 legacy integration + 17 new ISO
+compatibility specs covering `<<`, `>>`, `insert`, `remove`,
+`pages`, `page_count`, `new_page`, `title=`/`author=`, `save`,
+`to_pdf`, `number_pages`, and an end-to-end booklet workflow that
+mirrors the upstream README example).
+
+=== Roadmap
+
+* **v1.0.31.2** — `Page` wrapper class (`textbox`, `rotate_*`,
+  `mediabox`, …), `stamp_page` for watermarks/page numbers via
+  page composition rather than incremental update.
+* **v1.0.31.3** — encryption (40/128/256 bits) and `secured?`.
+* **v1.0.31.4** — PAdES signatures.
+
 == v0.2.0 — 2026-04-26
 
 **Multi-PDF merging shipped — the headline feature.** This is what
