@@ -1,4 +1,5 @@
 require "crystal-pdf/src/pdf"
+require "crystal-watermark/src/crystal_watermark"
 
 require "./combine_pdf/version"
 require "./combine_pdf/options"
@@ -6,6 +7,12 @@ require "./combine_pdf/numberer"
 require "./combine_pdf/merged_document_writer"
 require "./combine_pdf/merger"
 require "./combine_pdf/pdf"
+require "./combine_pdf/config"
+require "./combine_pdf/config_loader"
+require "./combine_pdf/config_initializer"
+require "./combine_pdf/config_refresher"
+require "./combine_pdf/advanced_numberer"
+require "./combine_pdf/booklet_builder"
 
 # CombinePDF — PDF post-processing in pure Crystal.
 #

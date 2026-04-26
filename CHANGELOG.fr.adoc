@@ -3,6 +3,95 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.2 — 2026-04-27
+
+**Mode déclaratif `.crystal-combine-pdf.yml`** — la nouvelle façon
+recommandée d'assembler un livret. L'utilisateur lance
+`crystal-combine-pdf --init` dans un dossier de PDF ; un fichier YAML
+est généré avec la liste, l'utilisateur réordonne / titre / commente
+selon ses besoins, puis `crystal-combine-pdf` (sans argument)
+construit le livret final.
+
+=== Nouvelles commandes
+
+* `crystal-combine-pdf --init` (`-i`) — génère un
+  `.crystal-combine-pdf.yml` peuplé avec les `*.pdf` du dossier courant.
+* `crystal-combine-pdf --refresh` (`-R`) — met à jour la liste `files:`
+  : ajoute en fin les nouveaux PDF, commente les entrées dont le
+  fichier a disparu (avec annotation `# disparu le YYYY-MM-DD`).
+  *Préserve* commentaires, ordre courant et titres inline.
+* `crystal-combine-pdf --recursive` (`-r`) — scan récursif des
+  sous-dossiers (avec `--init` ou `--refresh`), parents d'abord puis
+  sous-dossiers triés alphabétiquement.
+* `crystal-combine-pdf --dir DIR` (`-d`) — cible un dossier différent
+  du courant.
+* `crystal-combine-pdf` (sans argument) — lit le YAML du dossier
+  courant et produit le livret.
+
+=== Fichier `.crystal-combine-pdf.yml`
+
+Couvre tous les réglages d'assemblage :
+
+* `output`, `title`, `author`, `duplex`
+* `cover.mode` (`none` | `recto` | `recto-verso`),
+  `cover.include_in_numbering`. Surcharge asymétrique via
+  `cover.front` / `cover.back`.
+* `numbering.enabled`, `numbering.global`, `numbering.partition`,
+  `numbering.skip_pages`. Chaque couche : `enabled`, `format`,
+  `style` (`plain` | `badge` | `circle` | `square` | `oval`),
+  `position`, `font_size`, `color`, `margin`, `hide_when_single`.
+* Section `toc:` (commentée par défaut — bookmarks et page TOC
+  textuelle prévus pour v1.0.31.3).
+* Section `watermark:` (commentée par défaut, déléguée à
+  `crystal-watermark`).
+* Liste `files:` avec forme courte `- foo.pdf` et forme longue
+  `- foo.pdf: "Titre lisible"`. Préfixe `# - ` pour exclure une entrée.
+
+=== Refonte du moteur de numérotation
+
+`AdvancedNumberer` remplace l'ancien `Numberer` pour les builds
+déclaratifs (l'ancien reste pour les sous-commandes historiques) :
+
+* **15 positions cardinales** — `top-left/center/right`,
+  `bottom-left/center/right`.
+* **4 positions duplex-aware** — `outer-top`, `inner-top`,
+  `outer-bottom`, `inner-bottom`. Quand `duplex: true`,
+  `outer-*` = côté opposé à la reliure, `inner-*` = côté reliure ;
+  les deux alternent par parité de page.
+* **5 styles visuels** — `plain` (texte nu), `badge` (cadre arrondi
+  gris pâle), `circle`, `square`, `oval`.
+* **Couverture cover-aware** — quand `cover.include_in_numbering: false`,
+  les `cover.front_pages` premières et `cover.back_pages` dernières
+  pages ne sont pas numérotées et la numérotation démarre à 1 sur la
+  première page de contenu. `%total%` reflète le total *utile*.
+
+=== Filigrane
+
+Section `watermark:` du YAML déléguée à `crystal-watermark` (nouvelle
+dépendance, `~> 0.1`). Cinq styles supportés : `diagonal`, `tiled`,
+`header`, `footer`, `center`. Réglages `text`, `font_size`, `color`,
+`opacity`, `rotation`.
+
+=== Validation préalable
+
+`BookletBuilder` ouvre chaque PDF avant la fusion et liste tous les
+fichiers non lisibles par `crystal-pdf` (xref streams PDF 1.5+,
+filtres CCITTFaxDecode/DCTDecode) avec un message d'erreur clair et
+des contournements suggérés (`qpdf --object-streams=disable`).
+
+=== Reportés en v1.0.31.3
+
+* **Bookmarks PDF** (`/Outlines`) — barre latérale navigable du lecteur.
+* **Page TOC textuelle cliquable** — sommaire avec liens internes.
+* Header de titre par fichier — stub présent dans la `Layer` mais pas
+  encore rendu.
+
+=== Tests
+
+64 exemples (52 hérités + 12 nouveaux d'intégration : `--init`,
+`--refresh`, scan récursif, build end-to-end avec
+`cover.include_in_numbering`, filigrane).
+
 == v1.0.31.1 — 2026-04-26
 
 **Compatibilité ISO avec la gem Ruby `combine_pdf` v1.0.31** — les

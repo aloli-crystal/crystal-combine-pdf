@@ -24,6 +24,21 @@ Au-dessus de la gem nous livrons deux bonus spécifiques Crystal :
 
 toc::[]
 
+== Démarrage rapide (mode déclaratif, recommandé pour les livrets)
+
+Trois commandes pour assembler un dossier de PDF en livret :
+
+[source,shell]
+----
+cd /chemin/vers/mes-partitions
+crystal-combine-pdf --init      # génère .crystal-combine-pdf.yml
+$EDITOR .crystal-combine-pdf.yml  # réordonner, titrer, exclure
+crystal-combine-pdf             # construit mes-partitions.pdf
+----
+
+Voir la section <<Mode déclaratif>> pour le détail du fichier
+`.crystal-combine-pdf.yml`.
+
 == Démarrage rapide (API ISO, miroir de la gem Ruby)
 
 [source,crystal]
@@ -120,9 +135,119 @@ shards build --release
 cp bin/crystal-combine-pdf ~/bin/   # ou utiliser crystal-bin-installer
 ----
 
-== CLI
+== Mode déclaratif
 
-Trois sous-commandes : `number`, `merge`, `assemble`.
+La façon recommandée d'assembler un livret de partitions, de
+chants, ou n'importe quelle liste de PDF.
+
+=== Commandes
+
+[source,shell]
+----
+crystal-combine-pdf -i, --init [-r, --recursive]
+  Initialise .crystal-combine-pdf.yml dans le dossier courant.
+  -r scanne aussi les sous-dossiers (parents d'abord, puis alpha).
+
+crystal-combine-pdf -R, --refresh [-r, --recursive]
+  Rafraîchit la liste `files:` du YAML existant : ajoute en fin
+  les nouveaux PDF, commente les entrées dont le fichier a
+  disparu. Préserve commentaires, ordre courant et titres inline.
+
+crystal-combine-pdf -d, --dir DOSSIER
+  Cible un dossier différent du courant.
+
+crystal-combine-pdf
+  Sans sous-commande : lit .crystal-combine-pdf.yml du dossier
+  courant, assemble le livret, applique numérotation et
+  filigrane, écrit la sortie.
+----
+
+=== Exemple de `.crystal-combine-pdf.yml`
+
+[source,yaml]
+----
+output: mes-partitions.pdf
+title:  "Mes Partitions"
+author: "Philippe Nénert"
+
+duplex: true              # recto-verso
+
+cover:
+  mode: recto-verso       # none | recto | recto-verso
+  include_in_numbering: false
+
+numbering:
+  enabled: true
+  global:
+    enabled: true
+    format: "%page%/%total%"
+    style: badge          # plain | badge | circle | square | oval
+    position: outer-bottom
+    font_size: 10
+    color: "#333333"
+    margin: 24
+  partition:
+    enabled: true
+    format: "%page%/%total%"
+    style: plain
+    position: outer-top
+    font_size: 9
+    color: "#666666"
+    hide_when_single: true
+  skip_pages: []
+
+# watermark:
+#   text: "Confidentiel"
+#   style: diagonal       # diagonal | tiled | header | footer | center
+#   font_size: 48
+#   color: "#cccccc"
+#   opacity: 0.15
+#   rotation: 45
+
+files:
+  - couverture.pdf
+  - partition1.pdf: "Allegro — C. Debussy"
+  - partition2.pdf: "Adagio — F. Chopin"
+  # - brouillon-2025.pdf
+----
+
+=== Vocabulaire des positions
+
+[cols="1,4"]
+|===
+| Type de position | Valeurs
+
+| Statique (fixe quelle que soit la parité de page)
+| `top-left`, `top-center`, `top-right`,
+  `bottom-left`, `bottom-center`, `bottom-right`
+
+| Duplex-aware (alterne par parité de page)
+| `outer-top`, `inner-top`, `outer-bottom`, `inner-bottom`
+|===
+
+Quand `duplex: true`, `outer-*` se résout au côté opposé à la
+reliure (droite pour les pages impaires/recto, gauche pour les
+paires/verso). `inner-*` est le côté reliure. Quand
+`duplex: false`, `outer-*` ≡ `right`, `inner-*` ≡ `left`.
+
+=== Sémantique de la couverture
+
+* `cover.mode: none` — pas de couverture, toutes les pages
+  numérotées (défaut).
+* `cover.mode: recto` — 1 page de couverture en début *et* 1 en fin.
+* `cover.mode: recto-verso` — 2 pages en début et 2 en fin.
+* Pour des couvertures asymétriques, utilisez `cover.front:` et
+  `cover.back:` à la place de `cover.mode:`.
+
+Quand `include_in_numbering: false` (défaut), ni les pages de
+couverture avant ni les pages de couverture arrière n'affichent de
+numéro, et la première page de contenu du livret porte le numéro 1.
+`%total%` reflète le total *utile* (sans les couvertures).
+
+== Sous-commandes historiques
+
+Les sous-commandes originales `number`, `merge`, `assemble` restent
+disponibles pour les workflows scriptés.
 
 === `assemble` — le workflow livret (le plus courant)
 

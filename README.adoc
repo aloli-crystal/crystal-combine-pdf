@@ -23,6 +23,21 @@ gem :
 
 toc::[]
 
+== Quickstart (mode déclaratif, recommandé pour les livrets)
+
+Trois commandes pour assembler un dossier de PDF en livret :
+
+[source,shell]
+----
+cd /chemin/vers/mes-partitions
+crystal-combine-pdf --init      # génère .crystal-combine-pdf.yml
+$EDITOR .crystal-combine-pdf.yml  # réordonner, titrer, exclure
+crystal-combine-pdf             # construit mes-partitions.pdf
+----
+
+Voyez la section <<Mode déclaratif>> pour le détail du fichier
+`.crystal-combine-pdf.yml`.
+
 == Quickstart (ISO API, mirrors the Ruby gem)
 
 [source,crystal]
@@ -117,9 +132,119 @@ shards build --release
 cp bin/crystal-combine-pdf ~/bin/   # or use crystal-bin-installer
 ----
 
-== CLI
+== Mode déclaratif
 
-Three sub-commands: `number`, `merge`, `assemble`.
+The recommended way to assemble a booklet of partitions, scores or
+any list of PDFs.
+
+=== Commands
+
+[source,shell]
+----
+crystal-combine-pdf -i, --init [-r, --recursive]
+  Initialise .crystal-combine-pdf.yml in the current folder.
+  -r scans subfolders too (parents first, then alpha).
+
+crystal-combine-pdf -R, --refresh [-r, --recursive]
+  Refresh the `files:` list of an existing YAML : add new PDFs
+  at the end, comment out entries whose file has disappeared.
+  Preserves comments, current order and inline titles.
+
+crystal-combine-pdf -d, --dir DIR
+  Target a different folder than the current.
+
+crystal-combine-pdf
+  No subcommand : reads .crystal-combine-pdf.yml from the
+  current folder, assembles the booklet, applies numbering and
+  watermark, writes the output.
+----
+
+=== `.crystal-combine-pdf.yml` example
+
+[source,yaml]
+----
+output: mes-partitions.pdf
+title:  "Mes Partitions"
+author: "Philippe Nénert"
+
+duplex: true              # recto-verso
+
+cover:
+  mode: recto-verso       # none | recto | recto-verso
+  include_in_numbering: false
+
+numbering:
+  enabled: true
+  global:
+    enabled: true
+    format: "%page%/%total%"
+    style: badge          # plain | badge | circle | square | oval
+    position: outer-bottom
+    font_size: 10
+    color: "#333333"
+    margin: 24
+  partition:
+    enabled: true
+    format: "%page%/%total%"
+    style: plain
+    position: outer-top
+    font_size: 9
+    color: "#666666"
+    hide_when_single: true
+  skip_pages: []
+
+# watermark:
+#   text: "Confidentiel"
+#   style: diagonal       # diagonal | tiled | header | footer | center
+#   font_size: 48
+#   color: "#cccccc"
+#   opacity: 0.15
+#   rotation: 45
+
+files:
+  - couverture.pdf
+  - partition1.pdf: "Allegro — C. Debussy"
+  - partition2.pdf: "Adagio — F. Chopin"
+  # - brouillon-2025.pdf
+----
+
+=== Position vocabulary
+
+[cols="1,4"]
+|===
+| Position type | Values
+
+| Static (fixed regardless of page parity)
+| `top-left`, `top-center`, `top-right`,
+  `bottom-left`, `bottom-center`, `bottom-right`
+
+| Duplex-aware (alternates per page parity)
+| `outer-top`, `inner-top`, `outer-bottom`, `inner-bottom`
+|===
+
+When `duplex: true`, `outer-*` resolves to the page side opposite to
+the spine (right for odd/recto pages, left for even/verso pages).
+`inner-*` is the spine side. When `duplex: false`,
+`outer-*` ≡ `right`, `inner-*` ≡ `left`.
+
+=== Cover semantics
+
+* `cover.mode: none` — no cover, all pages numbered (default).
+* `cover.mode: recto` — 1 cover page at the front *and* 1 at the back.
+* `cover.mode: recto-verso` — 2 cover pages at the front and 2 at
+  the back.
+* For asymmetric covers, use `cover.front:` and `cover.back:` instead
+  of `cover.mode:`.
+
+When `include_in_numbering: false` (default), neither the front nor
+the back cover pages display a number, and the booklet's first
+content page is numbered "1". `%total%` reflects the *content* total
+(not including covers).
+
+== Sub-commands historiques
+
+The original `number`, `merge`, `assemble` sub-commands remain
+available for scripted workflows.
 
 === `assemble` — the booklet workflow (most users want this)
 
