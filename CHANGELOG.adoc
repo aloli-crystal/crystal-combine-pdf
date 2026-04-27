@@ -3,6 +3,62 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.7 — 2026-04-27
+
+**Rendu de la numérotation aligné sur le document de référence**
+(livret de partitions « laguiole-messe »). Plus de petits numéros
+discrets dans un coin : on a maintenant un gros « 1 / 2 » gras en
+haut à droite (l'œil du musicien le voit à un mètre) et une
+pastille ovale pour le numéro global en bas.
+
+=== Nouveautés
+
+* **`Layer#bold` et `Layer#italic`** (`Bool`, défauts `false`).
+  Cumulables : `bold` + `italic` → Helvetica-BoldOblique. Les
+  quatre variants Type1 standards de la famille Helvetica sont
+  désormais injectés à la demande dans `/Resources /Font`,
+  chacun sous un nom unique (`/__CCP_HV__`, `/__CCP_HVB__`,
+  `/__CCP_HVO__`, `/__CCP_HVBO__`).
+* **Style `oval` enrichi** : pastille pill (rectangle entièrement
+  arrondi en hauteur) avec fond gris pâle (RGB 0.93) et bordure
+  noire fine (0.6 pt). Padding intérieur généreux (0.9 × font_size
+  horizontalement). C'est le style recommandé pour le numéro
+  global — il « marque l'œil » sans saturer la page.
+* Les autres styles (`badge`, `circle`, `square`) ont aussi été
+  ajustés (radii, fills, strokes différenciés) pour rendre chacun
+  visuellement distinct.
+
+=== Défauts du template `init` revus
+
+[cols="1,3"]
+|===
+| Couche | Nouveau défaut
+
+| `numbering.global`
+| `format: "- %page% -"`, `style: oval`,
+  `position: bottom-right`, `font_size: 13`, noir
+
+| `numbering.partition`
+| `format: "%page% / %total%"`, `style: plain`,
+  `position: top-right`, `font_size: 27`, **gras**, noir,
+  `hide_when_single: true`
+|===
+
+=== Réorganisation du YAML
+
+La section `files:` est désormais placée juste après `title:` /
+`author:` (en tête du fichier), plutôt qu'en queue. C'est la
+section la plus fréquemment éditée — la mettre en haut évite de
+scroller à chaque édition. La logique de `refresh` continue de
+fonctionner (elle s'arrête à la prochaine ligne non-vide
+non-commentaire qui n'est pas une entrée `- ...`).
+
+=== Tests
+
+68 specs verts. Spec d'intégration mis à jour pour les nouveaux
+formats par défaut (`(- 1 -)`, `(1 / 2)` au lieu de `(1/5)`,
+`(1/2)` ).
+
 == v1.0.31.6 — 2026-04-27
 
 **Trois correctifs critiques** détectés sur un assemblage réel :

@@ -83,14 +83,32 @@ module CombinePDF
       String.build do |s|
         s << <<-HEADER
           # .crystal-combine-pdf.yml
-          # Généré par `crystal-combine-pdf --init` — éditez librement.
+          # Généré par `crystal-combine-pdf init` — éditez librement.
           # Pour rafraîchir après ajout/retrait de PDF :
-          #   crystal-combine-pdf --refresh
+          #   crystal-combine-pdf refresh
 
           output: #{output}
           title:  "#{folder_name}"
           author: "#{detect_author}"
 
+          # ─── Liste des fichiers ───────────────────────────────────────
+          # C'est la section qu'on édite le plus.
+          # Ordre = ordre du livret. Réordonnez les lignes à votre
+          # convenance. Préfixez par `# -` pour exclure une entrée
+          # sans la supprimer (`refresh` la conservera commentée).
+          # Ajoutez `: "Titre"` pour personnaliser le bookmark
+          # (forme longue : `- foo.pdf: "Titre lisible"`).
+          files:
+          HEADER
+
+        s << "\n"
+        pdfs.each do |path|
+          s << "  - " << yaml_quote_if_needed(path) << "\n"
+        end
+
+        s << <<-REST
+
+          # ─── Format de page ───────────────────────────────────────────
           # Format des pages générées par ce shard (TOC, pages blanches…).
           # Les PDF d'entrée gardent leur format d'origine — ce réglage
           # ne s'applique qu'aux pages que le shard fabrique lui-même.
@@ -137,34 +155,45 @@ module CombinePDF
           #   │   outer-* ≡ right        inner-* ≡ left
           #
           # Styles disponibles :
-          #   plain | badge | circle | square | oval
+          #   plain  | texte nu sans cadre
+          #   badge  | cadre arrondi gris très pâle, discret
+          #   oval   | pastille pill (très arrondie) avec bordure noire fine
+          #            — recommandé pour le numéro global, ça marque l'œil
+          #   circle | cercle parfait
+          #   square | rectangle à coins droits
           numbering:
             enabled: true            # désactive toute la numérotation si false
+
+            # Numéro global (ex: "- 6 -" sur 12 pages utiles).
             global:
               enabled: true
-              format: "%page%/%total%"  # ex: "- %page% -", "page %page%"
-              style: plain
+              format: "- %page% -"
+              style: oval            # pastille gris pâle bordure fine
               position: bottom-right
-              font_size: 10
-              color: "#333333"
+              font_size: 13
+              color: "#000000"
               margin: 24
+              bold: false
+              italic: false
 
             # ─── Numérotation intra-partition ─────────────────────────
             # Pour un recueil composé de plusieurs partitions (morceaux,
             # chants, fascicules…), affiche en plus de la numérotation
-            # globale une marque "n/t" (ex: "2/4" sur la 2e page d'une
-            # partition de 4 pages). Les tailles de partitions sont
-            # auto-détectées : chaque fichier de la liste `files:`
-            # ci-dessous = une partition. `hide_when_single: true`
-            # masque la marque pour les partitions d'une seule page.
+            # globale une marque "n / t" (ex: "2 / 4" sur la 2e page
+            # d'une partition de 4 pages). Les tailles de partitions
+            # sont auto-détectées : chaque fichier de la liste `files:`
+            # = une partition. `hide_when_single: true` masque la
+            # marque pour les partitions d'une seule page.
             partition:
               enabled: true
-              format: "%page%/%total%"
+              format: "%page% / %total%"
               style: plain
               position: top-right
-              font_size: 9
-              color: "#666666"
+              font_size: 27           # gros pour être lu à 1m
+              color: "#000000"
               margin: 24
+              bold: true              # Helvetica-Bold
+              italic: false
               hide_when_single: true
 
             # Décommenter pour titrer chaque partition (texte = clé titre
@@ -204,17 +233,7 @@ module CombinePDF
           #   color: "#cccccc"
           #   opacity: 0.15
           #   rotation: 45
-
-          # ─── Liste des fichiers ───────────────────────────────────────
-          # Ordre = ordre du livret. Préfixez par `# -` pour exclure.
-          # Ajoutez `: "Titre"` pour personnaliser le bookmark.
-          files:
-          HEADER
-
-        s << "\n"
-        pdfs.each do |path|
-          s << "  - " << yaml_quote_if_needed(path) << "\n"
-        end
+          REST
       end
     end
 

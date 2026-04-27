@@ -111,13 +111,13 @@ module CombinePDF
         next if layers.empty?
 
         # CRITIQUE : avant d'écrire un content stream qui référence
-        # `/CCPHV X Tf`, on s'assure que `/CCPHV` est déclaré dans
-        # le `/Resources /Font` de la page. Sans ça, certains
-        # viewers PDF (Preview macOS, mupdf, certains visualiseurs
-        # Web) refusent de tracer le texte parce qu'ils ne savent
-        # pas inférer la police standard depuis son nom long. Adobe
-        # Reader le ferait, mais on cible la compatibilité maximale.
-        ensure_helvetica_in_page_resources(reader, page)
+        # nos polices `/__CCP_HV*__ X Tf`, on s'assure qu'elles sont
+        # déclarées dans le `/Resources /Font` de la page. Sans ça,
+        # certains viewers PDF (Preview macOS, mupdf, viewers Web)
+        # refusent de tracer le texte parce qu'ils ne savent pas
+        # inférer la police standard depuis son nom long.
+        needed_fonts = layers.map { |l| l[3] }.uniq
+        ensure_fonts_in_page_resources(reader, page, needed_fonts)
 
         stream = build_stream(layers)
         page.add_content_stream(stream) unless stream.empty?
@@ -126,32 +126,30 @@ module CombinePDF
       reader.save(output)
     end
 
-    # Nom unique attribué à notre Helvetica injectée dans le
-    # `/Resources /Font` de chaque page. Préfixé de `__CCP_` pour
-    # éviter les collisions avec n'importe quel nom de police déjà
-    # déclaré (`/F1`, `/F2`, `/Helvetica`, etc.).
-    HELVETICA_FONT_KEY = "__CCP_HV__"
-
-    # Garantit que la police Helvetica WinAnsi est disponible sous
-    # le nom `/__CCP_HV__` dans le dictionnaire `/Resources /Font`
-    # de la page. Crée le dictionnaire de Resources et/ou de Font
-    # si absent ; copie les dictionnaires partagés via une
-    # référence indirecte avant de les modifier (pour ne pas
-    # contaminer d'autres pages).
-    private def ensure_helvetica_in_page_resources(reader : ::PDF::Reader, page : ::PDF::ReaderPage) : Nil
+    # Garantit que les polices référencées par les couches `layers`
+    # sont déclarées dans `/Resources /Font` de la page. Crée le
+    # dictionnaire de Resources et/ou de Font si absents ; copie
+    # les dictionnaires partagés via référence indirecte avant de
+    # les modifier (pour ne pas contaminer d'autres pages).
+    private def ensure_fonts_in_page_resources(
+      reader : ::PDF::Reader, page : ::PDF::ReaderPage,
+      layers : Array(Config::Numbering::Layer),
+    ) : Nil
       page_dict = page.page_dict
 
       resources = unshare_dict(reader, page_dict["Resources"]?)
       font = unshare_dict(reader, resources["Font"]?)
 
-      return if font[HELVETICA_FONT_KEY]?
-
-      helvetica = ::PDF::Objects::Dictionary.new
-      helvetica["Type"] = ::PDF::Objects::Name.new("Font")
-      helvetica["Subtype"] = ::PDF::Objects::Name.new("Type1")
-      helvetica["BaseFont"] = ::PDF::Objects::Name.new("Helvetica")
-      helvetica["Encoding"] = ::PDF::Objects::Name.new("WinAnsiEncoding")
-      font[HELVETICA_FONT_KEY] = helvetica
+      layers.each do |layer|
+        key = layer.font_key
+        next if font[key]?
+        entry = ::PDF::Objects::Dictionary.new
+        entry["Type"] = ::PDF::Objects::Name.new("Font")
+        entry["Subtype"] = ::PDF::Objects::Name.new("Type1")
+        entry["BaseFont"] = ::PDF::Objects::Name.new(layer.font_basefont)
+        entry["Encoding"] = ::PDF::Objects::Name.new("WinAnsiEncoding")
+        font[key] = entry
+      end
 
       resources["Font"] = font
       page_dict["Resources"] = resources
@@ -278,28 +276,57 @@ module CombinePDF
     private def render_layer(io : IO, x : Float64, y : Float64, text : String, layer : Config::Numbering::Layer) : Nil
       text_w = approx_text_width(text, layer.font_size)
 
-      # Style badge : cadre arrondi gris très pâle derrière
-      if layer.style == "badge" || layer.style == "circle" ||
-         layer.style == "square" || layer.style == "oval"
-        pad_x = layer.font_size * 0.6
-        pad_y = layer.font_size * 0.3
+      # Style avec arrière-plan : on dessine le cadre AVANT le texte.
+      if layer.style != "plain"
+        # Padding intérieur — généreux pour les ovals/pills, plus
+        # serré pour les badges/squares.
+        pad_x = case layer.style
+                when "oval", "circle" then layer.font_size * 0.9
+                else                       layer.font_size * 0.5
+                end
+        pad_y = layer.font_size * 0.35
+
+        # Pour le rendu PDF, le texte est dessiné à la baseline `y`.
+        # Le glyphe descend sous la baseline (descender ≈ 20% de
+        # font_size). Le rectangle doit englober toute la hauteur.
+        descender = layer.font_size * 0.22
+        ry = y - descender - pad_y
         rx = x - pad_x
-        ry = y - pad_y
         rw = text_w + 2 * pad_x
         rh = layer.font_size + 2 * pad_y
+
+        # Rayon : la pastille `oval` est totalement arrondie (pill).
+        # `circle` est un cercle parfait (carré arrondi à 50%).
         radius = case layer.style
                  when "square" then 0.0
                  when "circle" then [rw, rh].min / 2
-                 when "oval"   then [rw, rh].min / 2
+                 when "oval"   then rh / 2
                  else               rh / 3 # badge
                  end
-        draw_rounded_rect(io, rx, ry, rw, rh, radius)
+
+        # Bordure et remplissage : un peu plus marqué pour `oval`
+        # qui est le style "ça marque l'œil" demandé par défaut.
+        case layer.style
+        when "oval"
+          fill = "0.93 0.93 0.93"
+          stroke = "0 0 0"
+          stroke_w = 0.6
+        when "circle", "square"
+          fill = "0.92 0.92 0.92"
+          stroke = "0.5 0.5 0.5"
+          stroke_w = 0.5
+        else # badge
+          fill = "0.95 0.95 0.95"
+          stroke = "0.75 0.75 0.75"
+          stroke_w = 0.4
+        end
+        draw_rounded_rect(io, rx, ry, rw, rh, radius, fill, stroke, stroke_w)
       end
 
       r, g, b = layer.color
       io << "BT\n"
       io << format_number(r) << " " << format_number(g) << " " << format_number(b) << " rg\n"
-      io << "/" << HELVETICA_FONT_KEY << " " << format_number(layer.font_size) << " Tf\n"
+      io << "/" << layer.font_key << " " << format_number(layer.font_size) << " Tf\n"
       io << format_number(x) << " " << format_number(y) << " Td\n"
       io << "(" << escape_pdf_string(text) << ") Tj\n"
       io << "ET\n"
@@ -307,12 +334,15 @@ module CombinePDF
 
     # Trace un rectangle arrondi (ou un cercle/oval si rayon = min/2).
     # Approximation Bézier classique pour les coins arrondis.
-    private def draw_rounded_rect(io : IO, x : Float64, y : Float64, w : Float64, h : Float64, r : Float64) : Nil
+    # `fill` et `stroke` sont des chaînes "R G B" (composantes 0-1).
+    private def draw_rounded_rect(io : IO, x : Float64, y : Float64,
+                                  w : Float64, h : Float64, r : Float64,
+                                  fill : String, stroke : String,
+                                  stroke_w : Float64) : Nil
       r = [r, w / 2, h / 2].min
-      # Couleur de remplissage très pâle, grise, pour discret
-      io << "0.92 0.92 0.92 rg\n"
-      io << "0.7 0.7 0.7 RG\n"
-      io << "0.5 w\n"
+      io << fill << " rg\n"
+      io << stroke << " RG\n"
+      io << format_number(stroke_w) << " w\n"
 
       if r <= 0.001
         # Rectangle simple

@@ -10,6 +10,19 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.7 = rendu de la numérotation aligné sur le doc de
+  #            référence laguiole-messe :
+  #            * Couches `bold:` et `italic:` sur Layer (Helvetica
+  #              Type1 standard, 4 variants).
+  #            * Style `oval` enrichi : pastille pill gris pâle
+  #              avec bordure noire fine — « ça marque l'œil ».
+  #            * Défauts du template revus : partition en
+  #              Helvetica-Bold 27pt format `%page% / %total%` ;
+  #              global en style oval format `- %page% -`.
+  #            * Section `files:` placée en haut du YAML (juste
+  #              après title/author) — c'est la section la plus
+  #              éditée.
+  #
   # 1.0.31.6 = trois fix critiques :
   #            1. Numérotation visible : la police Helvetica est
   #               désormais injectée dans `/Resources /Font` de chaque
@@ -55,5 +68,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.6"
+  VERSION = "1.0.31.7"
 end

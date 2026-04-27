@@ -170,15 +170,15 @@ describe "CLI déclarative" do
       File.exists?(output_path).should be_true
       SpecHelper.page_count(output_path).should eq(5)
 
-      # Les numéros sont bien présents (textes "1/5" à "5/5" dans le PDF)
+      # Les numéros sont bien présents — format global "- N -" avec
+      # tirets, partition "N / T" avec espaces autour du slash.
       content = File.read(output_path)
-      content.should contain("(1/5)")
-      content.should contain("(5/5)")
-      # Les marques de partition aussi : p1 = 2 pages → "1/2", "2/2"
-      #                                  p2 = 3 pages → "1/3", "2/3", "3/3"
-      content.should contain("(1/2)")
-      content.should contain("(2/2)")
-      content.should contain("(1/3)")
+      content.should contain("(- 1 -)")
+      content.should contain("(- 5 -)")
+      # Marques de partition : p1 = 2 pages, p2 = 3 pages.
+      content.should contain("(1 / 2)")
+      content.should contain("(2 / 2)")
+      content.should contain("(1 / 3)")
     end
 
     it "respecte cover.mode + include_in_numbering" do
@@ -197,13 +197,13 @@ describe "CLI déclarative" do
       output_path = builder.build
 
       pdf_content = File.read(output_path)
-      # 5 pages totales, cover.mode=recto = 1 page avant + 1 page arrière
-      # avec include_in_numbering: false, le contenu fait 3 pages,
-      # numérotées 1/3, 2/3, 3/3
-      pdf_content.should contain("(1/3)")
-      pdf_content.should contain("(3/3)")
-      # Le total ne doit pas afficher 5
-      pdf_content.should_not contain("(1/5)")
+      # 5 pages totales, cover.mode=recto = 1 page avant + 1 page
+      # arrière. Avec include_in_numbering: false, le contenu fait
+      # 3 pages, numérotées avec le format global par défaut "- N -".
+      pdf_content.should contain("(- 1 -)")
+      pdf_content.should contain("(- 3 -)")
+      # Le total ne doit pas afficher 5 (les couvertures sont sautées).
+      pdf_content.should_not contain("(- 5 -)")
     end
 
     it "respecte paper_size pour la page TOC (a4 par défaut)" do

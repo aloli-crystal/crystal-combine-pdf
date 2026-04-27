@@ -184,7 +184,9 @@ module CombinePDF
         property enabled : Bool
         property format : String
         # Style visuel : `"plain"` (texte nu), `"badge"` (cadre arrondi),
-        # `"circle"`, `"square"`, `"oval"`. Voir `Numberer` pour le rendu.
+        # `"circle"`, `"square"`, `"oval"` (pastille pleine façon
+        # tag/pill). Voir `AdvancedNumberer#render_layer` pour le
+        # rendu exact.
         property style : String
         # Position cardinale (statique) ou duplex-aware. Liste complète :
         # statiques  : top-left, top-center, top-right,
@@ -194,6 +196,11 @@ module CombinePDF
         property font_size : Float64
         property color : Tuple(Float64, Float64, Float64)
         property margin : Float64
+        # Police grasse (Helvetica-Bold). Cumulable avec `italic`.
+        property bold : Bool
+        # Police italique (Helvetica-Oblique). Cumulable avec `bold`
+        # → Helvetica-BoldOblique.
+        property italic : Bool
         # Pour la couche `partition` : ne rien afficher quand la
         # partition fait une seule page. Sans effet pour les autres
         # couches.
@@ -207,21 +214,59 @@ module CombinePDF
           @font_size : Float64 = 10.0,
           @color : Tuple(Float64, Float64, Float64) = {0.2, 0.2, 0.2},
           @margin : Float64 = 24.0,
+          @bold : Bool = false,
+          @italic : Bool = false,
           @hide_when_single : Bool = false,
         )
         end
 
-        # Défauts pour la couche globale (numéro de page du livret).
-        def self.global_default : Layer
-          new(position: "bottom-right")
+        # Nom court (`/__CCP_HV__`, `/__CCP_HVB__`, …) à utiliser
+        # dans le content stream et à déclarer dans `/Resources /Font`.
+        # Mappe (`bold`, `italic`) sur les quatre variants Type1
+        # standards de la famille Helvetica.
+        def font_key : String
+          case {bold, italic}
+          when {true, true}  then "__CCP_HVBO__"
+          when {true, false} then "__CCP_HVB__"
+          when {false, true} then "__CCP_HVO__"
+          else                    "__CCP_HV__"
+          end
         end
 
-        # Défauts pour la couche partition (marque « 1/4 »).
+        # Nom PDF de la BaseFont Type1 standard correspondante.
+        def font_basefont : String
+          case {bold, italic}
+          when {true, true}  then "Helvetica-BoldOblique"
+          when {true, false} then "Helvetica-Bold"
+          when {false, true} then "Helvetica-Oblique"
+          else                    "Helvetica"
+          end
+        end
+
+        # Défauts pour la couche globale (numéro de page du livret).
+        # Style "oval" pour avoir une pastille discrète qui marque
+        # quand même l'œil (cf. document de référence).
+        def self.global_default : Layer
+          new(
+            format: "- %page% -",
+            style: "oval",
+            position: "bottom-right",
+            font_size: 13.0,
+            color: {0.2, 0.2, 0.2},
+          )
+        end
+
+        # Défauts pour la couche partition (marque « 1 / 2 »).
+        # Helvetica-Bold 27pt en haut-droite — assez gros pour être
+        # vu à 1 mètre par un musicien qui tient sa partition.
         def self.partition_default : Layer
           new(
+            format: "%page% / %total%",
+            style: "plain",
             position: "top-right",
-            font_size: 9.0,
-            color: {0.4, 0.4, 0.4},
+            font_size: 27.0,
+            color: {0.0, 0.0, 0.0},
+            bold: true,
             hide_when_single: true,
           )
         end

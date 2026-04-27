@@ -135,6 +135,8 @@ module CombinePDF
         font_size: parse_float(node["font_size"]?, default.font_size),
         color: parse_color(node["color"]?, default.color),
         margin: parse_float(node["margin"]?, default.margin),
+        bold: parse_bool(node["bold"]?, default.bold),
+        italic: parse_bool(node["italic"]?, default.italic),
         hide_when_single: parse_bool(node["hide_when_single"]?, default.hide_when_single),
       )
     end
