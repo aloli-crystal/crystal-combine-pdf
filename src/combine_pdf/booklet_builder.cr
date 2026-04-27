@@ -68,14 +68,26 @@ module CombinePDF
       tmp_merged = File.tempname("ccp-merged", ".pdf")
       begin
         inputs = active.map { |entry| File.join(@base_dir, entry.path) }
-        Merger.merge(inputs, tmp_merged)
+        # On utilise une instance de Merger plutôt que Merger.merge
+        # pour pouvoir insérer une page TOC en tête après tous les
+        # `add()`. Si la TOC n'est pas activée, le résultat est
+        # identique à `Merger.merge`.
+        merger = Merger.new
+        inputs.each { |path| merger.add(path) }
+
+        if toc = @config.toc.try(&.page)
+          insert_toc_page(merger, active, toc)
+        end
+
+        merger.save(tmp_merged)
 
         # 2) Numérotation (cover-aware, duplex-aware)
         tmp_numbered = File.tempname("ccp-numbered", ".pdf")
         begin
           if @config.numbering.enabled
             partitions = active.map { |entry| ::PDF::Reader.open(File.join(@base_dir, entry.path)).page_count }
-            AdvancedNumberer.new(@config, partitions).apply(tmp_merged, tmp_numbered)
+            toc_pages = (@config.toc.try(&.page).try(&.enabled)) ? 1 : 0
+            AdvancedNumberer.new(@config, partitions, toc_pages).apply(tmp_merged, tmp_numbered)
           else
             File.copy(tmp_merged, tmp_numbered)
           end
@@ -105,6 +117,65 @@ module CombinePDF
       end
 
       output_path
+    end
+
+    # Construit les entrées TOC (à partir de la liste de fichiers
+    # active et du nombre de pages de chaque fichier), génère le
+    # content stream + annotations via TocBuilder, et insère la
+    # page TOC en tête du merger.
+    private def insert_toc_page(merger : Merger,
+                                active : Array(Config::FileEntry),
+                                _toc : Config::Toc::Page) : Nil
+      # `merger.page_refs` à ce stade contient les références des
+      # pages des partitions, dans l'ordre. Pour chaque entrée
+      # active, on associe sa première page = la `cumulative + 1`-ième
+      # référence du merger.
+      entries = [] of TocBuilder::Entry
+      cumulative = 0
+      active.each do |file_entry|
+        full = File.join(@base_dir, file_entry.path)
+        partition_pages = ::PDF::Reader.open(full).page_count
+        target_ref = merger.page_refs[cumulative]?
+        next unless target_ref
+
+        # Numéro affiché : 1-based dans le livret final, en
+        # tenant compte du décalage de la TOC (+1 page) et de
+        # cover.include_in_numbering.
+        displayed = compute_displayed_page_number(cumulative)
+
+        entries << TocBuilder::Entry.new(
+          title: file_entry.display_title,
+          page_number: displayed,
+          target_page_ref: target_ref,
+        )
+        cumulative += partition_pages
+      end
+
+      content, annots = TocBuilder.new(@config, entries).build
+      merger.insert_toc_page(content, annots)
+    end
+
+    # Calcule le numéro de page affiché pour une page située à
+    # l'index `idx` dans le contenu (0-based, AVANT insertion de la
+    # TOC). Tient compte de cover.front_pages et de
+    # cover.include_in_numbering.
+    private def compute_displayed_page_number(idx : Int32) : Int32
+      cover = @config.cover
+      front = cover.front_pages
+      if cover.include_in_numbering
+        # La couverture compte ; la TOC compte aussi (en première
+        # position). Donc page 1 = TOC, page 2 = front-cover-1, …
+        idx + front + 2
+      else
+        # Couverture et TOC sautées. Numérotation = idx - front + 1
+        # avec un plancher à 1 si la TOC pointe avant la couverture
+        # (rare mais possible).
+        if idx < front
+          1
+        else
+          idx - front + 1
+        end
+      end
     end
 
     private def apply_watermark(input : String, output : String, wm : Config::Watermark) : Nil

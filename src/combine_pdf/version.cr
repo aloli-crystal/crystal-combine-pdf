@@ -10,6 +10,13 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.4 = page de titre + sommaire cliquable insérée en tête
+  #            du livret. La page TOC est générée à la volée
+  #            (TocBuilder + Merger#insert_toc_page) avec
+  #            annotations PDF /Link pointant vers chaque première
+  #            page de partition. Encodage WinAnsi pour le rendu
+  #            correct des caractères accentués.
+  #
   # 1.0.31.3 = compatibilité PDF étendue via crystal-pdf v0.3.6 :
   #            tous les PDF du marché lisibles (xref streams 1.5+,
   #            object streams, scans CCITTFaxDecode, JPEG DCTDecode,
@@ -27,5 +34,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.3"
+  VERSION = "1.0.31.4"
 end

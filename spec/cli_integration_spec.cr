@@ -206,6 +206,42 @@ describe "CLI déclarative" do
       pdf_content.should_not contain("(1/5)")
     end
 
+    it "génère une page TOC en tête quand toc.page.enabled" do
+      dir = File.join(SpecHelper::TMP_DIR, "build-toc")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "p1.pdf"), page_count: 2)
+      SpecHelper.write_a4(File.join(dir, "p2.pdf"), page_count: 3)
+
+      CombinePDF::ConfigInitializer.init(dir)
+      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      content = File.read(yml).sub("# toc:", "toc:")
+        .sub("#   bookmarks: true", "  bookmarks: true")
+        .sub("#   page:", "  page:")
+        .sub("#     enabled: true", "    enabled: true")
+        .sub("#     title: \"\"", "    title: \"Mon Recueil\"")
+        .sub("#     subtitle: \"Sommaire\"", "    subtitle: \"Sommaire\"")
+        .sub("#     show_author: true", "    show_author: false")
+        .sub("#     leader_dots: true", "    leader_dots: true")
+        .sub("#     title_font_size: 24", "    title_font_size: 24")
+        .sub("#     subtitle_font_size: 16", "    subtitle_font_size: 16")
+        .sub("#     entry_font_size: 11", "    entry_font_size: 11")
+      File.write(yml, content)
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      output_path = builder.build
+
+      File.exists?(output_path).should be_true
+      # 2 + 3 = 5 pages de contenu, + 1 page TOC = 6 pages au total.
+      SpecHelper.page_count(output_path).should eq(6)
+
+      pdf_content = File.read(output_path)
+      # Le titre du recueil doit apparaître dans la TOC
+      pdf_content.includes?("Mon Recueil").should be_true
+      pdf_content.includes?("Sommaire").should be_true
+      # Au moins une annotation Link doit avoir été insérée
+      pdf_content.includes?("/Subtype /Link").should be_true
+    end
+
     it "applique le filigrane si configuré" do
       dir = File.join(SpecHelper::TMP_DIR, "build-watermark")
       Dir.mkdir_p(dir)

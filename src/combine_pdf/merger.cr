@@ -90,6 +90,68 @@ module CombinePDF
       end
     end
 
+    # Insère une page de titre + sommaire en première position de
+    # l'arbre `/Pages`. Doit être appelée APRÈS toutes les `add()`
+    # (sinon les références de destination ne pointeront vers rien).
+    #
+    # `content` : opérateurs PDF à mettre dans `/Contents` de la page
+    # `annotations` : dicts `Annot` à mettre dans `/Annots` (les
+    #                 références qu'ils contiennent sont déjà des
+    #                 `::PDF::Objects::Reference` valides vers des
+    #                 pages déjà mergées).
+    def insert_toc_page(content : String,
+                        annotations : Array(::PDF::Objects::Dictionary)) : Nil
+      # Allouer l'ID du content stream et l'ajouter au pool.
+      content_id = allocate_id
+      content_stream = ::PDF::Objects::Stream.new(::PDF::Objects::Dictionary.new, content.to_slice, true)
+      @objects << ::PDF::Objects::Indirect.new(content_id, content_stream)
+
+      # Allouer un ID par annotation et les ajouter.
+      annot_refs = ::PDF::Objects::Array.new
+      annotations.each do |annot|
+        aid = allocate_id
+        @objects << ::PDF::Objects::Indirect.new(aid, annot)
+        annot_refs << ::PDF::Objects::Reference.new(aid)
+      end
+
+      # Resources : Helvetica + variants. Type1 standard, pas
+      # d'embedding. Le font dictionary est inline (pas indirect)
+      # pour éviter d'allouer 3 IDs supplémentaires.
+      font_dict = ::PDF::Objects::Dictionary.new
+      ["F1", "F2", "F3"].zip(["Helvetica", "Helvetica-Bold", "Helvetica-Oblique"]) do |key, name|
+        font_entry = ::PDF::Objects::Dictionary.new
+        font_entry["Type"] = ::PDF::Objects::Name.new("Font")
+        font_entry["Subtype"] = ::PDF::Objects::Name.new("Type1")
+        font_entry["BaseFont"] = ::PDF::Objects::Name.new(name)
+        font_entry["Encoding"] = ::PDF::Objects::Name.new("WinAnsiEncoding")
+        font_dict[key] = font_entry
+      end
+      resources = ::PDF::Objects::Dictionary.new
+      resources["Font"] = font_dict
+
+      # Page dictionary (le /Parent sera fixé dans `write` comme
+      # pour toutes les autres pages).
+      page_dict = ::PDF::Objects::Dictionary.new
+      page_dict["Type"] = ::PDF::Objects::Name.new("Page")
+      mediabox = ::PDF::Objects::Array.new
+      mediabox << ::PDF::Objects::Number.new(0_i64)
+      mediabox << ::PDF::Objects::Number.new(0_i64)
+      mediabox << ::PDF::Objects::Number.new(595_i64) # A4 width
+      mediabox << ::PDF::Objects::Number.new(842_i64) # A4 height
+      page_dict["MediaBox"] = mediabox
+      page_dict["Resources"] = resources
+      page_dict["Contents"] = ::PDF::Objects::Reference.new(content_id)
+      unless annot_refs.empty?
+        page_dict["Annots"] = annot_refs
+      end
+
+      page_id = allocate_id
+      @objects << ::PDF::Objects::Indirect.new(page_id, page_dict)
+
+      # Insérer en tête de l'arbre des pages.
+      @page_refs.unshift(::PDF::Objects::Reference.new(page_id))
+    end
+
     # Builds the catalog + pages tree, registers them, and writes
     # the merged PDF to `path`.
     def save(path : String) : Nil

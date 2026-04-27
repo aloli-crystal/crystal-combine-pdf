@@ -12,44 +12,54 @@ module CombinePDF
   class AdvancedNumberer
     @config : Config
     @partitions : Array(Int32)
+    @toc_pages : Int32
 
-    def initialize(@config : Config, @partitions : Array(Int32))
+    # `toc_pages` = nombre de pages de TOC insérées en tête (0 ou 1).
+    # Ces pages sont JAMAIS numérotées et n'ont pas d'info partition.
+    def initialize(@config : Config, @partitions : Array(Int32), @toc_pages : Int32 = 0)
     end
 
     def apply(input : String, output : String) : Nil
       reader = ::PDF::Reader.open(input)
       total = reader.page_count
 
-      sum = @partitions.sum
+      sum = @partitions.sum + @toc_pages
       if sum != total
         raise ArgumentError.new(
-          "partitions sum (#{sum}) does not match the PDF page count (#{total})"
+          "partitions sum (#{@partitions.sum}) + toc_pages (#{@toc_pages}) does not match the PDF page count (#{total})"
         )
       end
 
       cover = @config.cover
       front = cover.front_pages
       back = cover.back_pages
-      content_total = total - front - back # nb de pages non-couverture
+      content_total = total - @toc_pages - front - back
       content_total = 0 if content_total < 0
 
       # Map 0-based page index → infos de partition (n_dans_partition, n_total_partition)
+      # Décalé de toc_pages pour que la 1ère partition commence après la TOC.
       page_to_partition = build_page_to_partition_map(total)
 
       reader.pages.each_with_index do |page, idx|
         page_num_pdf = idx + 1 # 1-based
 
         # ─── Calcul du numéro affiché
-        # Si include_in_numbering: false ET page de couverture (avant
-        # ou arrière) → pas de numéro global du tout.
-        is_front_cover = idx < front
+        # Pages TOC : aucune numérotation, aucune partition.
+        is_toc = idx < @toc_pages
+        # Couvertures : APRÈS la TOC en tête, et AVANT la fin pour
+        # le back cover.
+        is_front_cover = !is_toc && idx < (@toc_pages + front)
         is_back_cover = idx >= (total - back)
         is_cover = is_front_cover || is_back_cover
 
         # Numéro global affiché
-        if @config.cover.include_in_numbering
-          displayed_global = page_num_pdf
-          displayed_total = total
+        if is_toc
+          show_global = false
+          displayed_global = 0
+          displayed_total = content_total
+        elsif @config.cover.include_in_numbering
+          displayed_global = idx - @toc_pages + 1
+          displayed_total = total - @toc_pages
           show_global = true
         else
           if is_cover
@@ -57,7 +67,7 @@ module CombinePDF
             displayed_global = 0
             displayed_total = content_total
           else
-            displayed_global = idx - front + 1 # 1-based dans le contenu
+            displayed_global = idx - @toc_pages - front + 1 # 1-based dans le contenu
             displayed_total = content_total
             show_global = true
           end
@@ -80,8 +90,8 @@ module CombinePDF
           layers << {x, y, text, @config.numbering.global, "global"}
         end
 
-        # Couche partition
-        if @config.numbering.partition.enabled && !is_cover
+        # Couche partition (jamais sur les pages TOC ni couvertures)
+        if @config.numbering.partition.enabled && !is_cover && !is_toc
           if pi = page_to_partition[idx]?
             part_n, part_total = pi
             unless @config.numbering.partition.hide_when_single && part_total <= 1
@@ -107,10 +117,12 @@ module CombinePDF
       reader.save(output)
     end
 
-    # Construit le mapping page index → {n_dans_partition, total_partition}
+    # Construit le mapping page index → {n_dans_partition, total_partition}.
+    # Les `@toc_pages` premières pages sont nil (= pages TOC, hors
+    # logique partition).
     private def build_page_to_partition_map(total : Int32) : Array(Tuple(Int32, Int32)?)
       result = Array(Tuple(Int32, Int32)?).new(total, nil)
-      idx = 0
+      idx = @toc_pages
       @partitions.each do |part_size|
         part_size.times do |i|
           result[idx] = {i + 1, part_size}

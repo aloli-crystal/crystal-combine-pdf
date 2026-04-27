@@ -112,13 +112,16 @@ geometry read from the actual `MediaBox` of every page.
 * **v1.0.31.3** — ✅ Extended PDF compatibility (xref streams 1.5+,
   object streams, CCITT scans, JPEGs, LilyPond, …) — every PDF in
   the wild now readable without qpdf preprocessing.
+* **v1.0.31.4** — ✅ Title + clickable TOC page inserted at the
+  front of the booklet. Each TOC line is a `/Subtype /Link`
+  annotation that jumps to the target partition.
 
 === Upcoming
 
-* **v1.0.31.4** — PDF bookmarks (`/Outlines`) + clickable text
-  TOC page + per-file title header.
-* **v1.0.31.5** — encryption (40/128/256 bits), `secured?`.
-* **v1.0.31.6** — PAdES-style signatures.
+* **v1.0.31.5** — PDF bookmarks (`/Outlines`) + per-file title
+  header.
+* **v1.0.31.6** — encryption (40/128/256 bits), `secured?`.
+* **v1.0.31.7** — PAdES-style signatures.
 * (Ongoing) — resource deduplication when merging.
 
 === Improvement ideas

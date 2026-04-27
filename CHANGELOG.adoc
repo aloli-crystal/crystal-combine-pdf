@@ -3,6 +3,78 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.4 — 2026-04-27
+
+**Page de titre + sommaire cliquable.** Active la TOC dans le YAML
+et le livret final ouvre désormais sur une vraie page de garde
+avec liste des partitions et numéros de page — chaque ligne du
+sommaire est un lien cliquable qui saute à la partition cible.
+
+=== Configuration
+
+[source,yaml]
+----
+toc:
+  bookmarks: true
+  page:
+    enabled: true
+    title: ""              # vide = utilise le `title:` du document
+    subtitle: "Sommaire"
+    show_author: true      # affiche "par <auteur>" si défini
+    leader_dots: true      # pointillés entre titre et numéro
+    title_font_size: 24
+    subtitle_font_size: 16
+    entry_font_size: 11
+----
+
+=== Implémentation
+
+* Nouveau `CombinePDF::TocBuilder` qui produit le content stream
+  PDF de la page TOC (titre, sous-titre, auteur, liste numérotée
+  avec leader dots) + un dictionnaire `Annot` `/Subtype /Link` par
+  entrée, avec destination `[page_ref /XYZ null null null]` —
+  préserve la position et le zoom du viewer au saut.
+* Nouveau `Merger#insert_toc_page(content, annotations)` qui alloue
+  l'ID de la page TOC, ajoute le content stream et les annotations
+  comme objets indirects, et insère la nouvelle page en tête de
+  l'arbre `/Pages`.
+* Polices Type1 standards (`Helvetica`, `Helvetica-Bold`,
+  `Helvetica-Oblique`) déclarées dans le `/Resources` de la page
+  TOC avec `/Encoding /WinAnsiEncoding` — pas d'embedding.
+* `TocBuilder#write_winansi` convertit l'UTF-8 Crystal vers
+  Windows-1252 byte-pour-byte avant l'encodage du content stream :
+  ** ASCII et Latin-1 supplément encodés directement
+  ** Caractères typographiques courants (apostrophes courbes,
+     guillemets typographiques, em/en dashes, ellipsis, €, Œ, œ,
+     Š, Ÿ, …) mappés sur leurs positions WinAnsi 0x80-0x9F
+  ** Tout caractère hors WinAnsi remplacé par `?`
+
+=== Numérotation
+
+`AdvancedNumberer` accepte un nouveau paramètre `toc_pages : Int32`
+(par défaut 0). Ces pages en tête sont :
+
+* jamais numérotées (pas de couche globale ni partition)
+* exclues du calcul du total `%total%` (le total reflète le contenu
+  utile, pas la TOC ni les couvertures)
+
+`BookletBuilder` passe `toc_pages = 1` quand `toc.page.enabled`.
+
+=== Limitations
+
+* Une seule page : si la liste déborde, elle est tronquée. La
+  pagination de la TOC viendra dans une future version.
+* Police Helvetica non-Unicode → glyphes en dehors de WinAnsi
+  remplacés par `?`. Pour des partitions chinoises ou
+  scandinaves nommées en non-latin, prévoir un fallback DejaVu
+  ultérieurement.
+
+=== Tests
+
+65 specs verts (64 + 1 nouveau spec end-to-end qui vérifie la
+présence du titre, du sommaire et d'au moins une annotation
+`/Subtype /Link` dans le PDF produit).
+
 == v1.0.31.3 — 2026-04-27
 
 **Tous les PDF du marché sont désormais lisibles.** Plus besoin

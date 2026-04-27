@@ -140,7 +140,26 @@ module CombinePDF
 
     private def parse_toc(node : YAML::Any?) : Config::Toc?
       return nil unless node
-      Config::Toc.new(bookmarks: parse_bool(node["bookmarks"]?, true))
+      Config::Toc.new(
+        bookmarks: parse_bool(node["bookmarks"]?, true),
+        page: parse_toc_page(node["page"]?),
+      )
+    end
+
+    private def parse_toc_page(node : YAML::Any?) : Config::Toc::Page?
+      return nil unless node
+      enabled = parse_bool(node["enabled"]?, true)
+      return nil unless enabled
+      Config::Toc::Page.new(
+        enabled: true,
+        title: parse_str(node["title"]?, ""),
+        subtitle: parse_str(node["subtitle"]?, "Sommaire"),
+        show_author: parse_bool(node["show_author"]?, true),
+        leader_dots: parse_bool(node["leader_dots"]?, true),
+        title_font_size: parse_float(node["title_font_size"]?, 24.0),
+        subtitle_font_size: parse_float(node["subtitle_font_size"]?, 16.0),
+        entry_font_size: parse_float(node["entry_font_size"]?, 11.0),
+      )
     end
 
     private def parse_watermark(node : YAML::Any?) : Config::Watermark?

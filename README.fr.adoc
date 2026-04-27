@@ -114,13 +114,16 @@ géométrie réelle de chaque `MediaBox`.
 * **v1.0.31.3** — ✅ Compatibilité PDF étendue (xref streams 1.5+,
   object streams, scans CCITT, JPEG, LilyPond…) — tous les PDF du
   marché lisibles sans pré-traitement qpdf.
+* **v1.0.31.4** — ✅ Page de titre + sommaire cliquable insérée
+  en tête du livret. Chaque ligne du sommaire est une annotation
+  `/Subtype /Link` qui saute à la partition cible.
 
 === À venir
 
-* **v1.0.31.4** — bookmarks PDF (`/Outlines`) + page TOC textuelle
-  cliquable + header de titre par fichier.
-* **v1.0.31.5** — chiffrement (40/128/256 bits), `secured?`.
-* **v1.0.31.6** — signatures de type PAdES.
+* **v1.0.31.5** — bookmarks PDF (`/Outlines`) + header de titre
+  par fichier.
+* **v1.0.31.6** — chiffrement (40/128/256 bits), `secured?`.
+* **v1.0.31.7** — signatures de type PAdES.
 * (En continu) — déduplication des ressources lors de la fusion.
 
 === Idées d'amélioration

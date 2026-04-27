@@ -12,6 +12,7 @@ require "./combine_pdf/config_loader"
 require "./combine_pdf/config_initializer"
 require "./combine_pdf/config_refresher"
 require "./combine_pdf/advanced_numberer"
+require "./combine_pdf/toc_builder"
 require "./combine_pdf/booklet_builder"
 
 # CombinePDF — PDF post-processing in pure Crystal.

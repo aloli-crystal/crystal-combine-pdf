@@ -173,10 +173,20 @@ module CombinePDF
 
           # ─── Sommaire ─────────────────────────────────────────────────
           # toc:
-          #   bookmarks: true          # barre latérale du lecteur PDF
-          #   page:                    # v1.0.31.3 — page TOC textuelle
+          #   bookmarks: true          # barre latérale du lecteur PDF (v1.0.31.4)
+          #
+          #   # Page de titre + sommaire cliquable insérée en tête du livret.
+          #   # Compte comme page de couverture supplémentaire (non numérotée
+          #   # quand cover.include_in_numbering est false).
+          #   page:
           #     enabled: true
-          #     title: "Sommaire"
+          #     title: ""              # vide = utilise `title:` du document
+          #     subtitle: "Sommaire"
+          #     show_author: true      # affiche "par <auteur>" si défini
+          #     leader_dots: true      # pointillés entre titre et numéro
+          #     title_font_size: 24
+          #     subtitle_font_size: 16
+          #     entry_font_size: 11
 
           # ─── Filigrane ────────────────────────────────────────────────
           # watermark:

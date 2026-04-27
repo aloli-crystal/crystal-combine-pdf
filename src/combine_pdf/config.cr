@@ -203,14 +203,46 @@ module CombinePDF
     # Configuration du sommaire.
     #
     # `bookmarks` : génère le `/Outlines` du PDF (barre latérale
-    # navigable du lecteur). Toujours dispo dans v1.0.31.2.
+    # navigable du lecteur).
     #
-    # `page` (futur) : page texte cliquable insérée après la
-    # couverture. Prévu pour v1.0.31.3.
+    # `page` : page texte de titre + sommaire cliquable insérée en
+    # tête du livret. Quand activée, elle compte comme une page
+    # supplémentaire de couverture (non numérotée par défaut).
     class Toc
       property bookmarks : Bool
+      property page : Page?
 
-      def initialize(@bookmarks : Bool = true)
+      def initialize(@bookmarks : Bool = true, @page : Page? = nil)
+      end
+
+      # Configuration de la page de titre + sommaire.
+      class Page
+        property enabled : Bool
+        # Titre affiché en gros en haut de page. Vide → utilise
+        # `Config#title` ; sinon override.
+        property title : String
+        # Sous-titre (ex: « Sommaire »). Vide → masqué.
+        property subtitle : String
+        # Affiche `par <auteur>` quand `Config#author` est non vide.
+        property show_author : Bool
+        # Affiche les pointillés entre titre et numéro de page.
+        property leader_dots : Bool
+        # Tailles de police, en points.
+        property title_font_size : Float64
+        property subtitle_font_size : Float64
+        property entry_font_size : Float64
+
+        def initialize(
+          @enabled : Bool = true,
+          @title : String = "",
+          @subtitle : String = "Sommaire",
+          @show_author : Bool = true,
+          @leader_dots : Bool = true,
+          @title_font_size : Float64 = 24.0,
+          @subtitle_font_size : Float64 = 16.0,
+          @entry_font_size : Float64 = 11.0,
+        )
+        end
       end
     end
 
