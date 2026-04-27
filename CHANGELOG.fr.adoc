@@ -3,6 +3,72 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.9 — 2026-04-27
+
+**Centrage horizontal correct des pastilles + format de
+numérotation pleinement personnalisable** (incluant tous les
+symboles typographiques WinAnsi).
+
+=== Centrage horizontal des pastilles
+
+Avant : la pastille ovale entourait le texte de manière
+asymétrique — toujours plus large à droite qu'à gauche. Cause :
+`approx_text_width` calculait `text.size × 0.55 × font_size` ;
+pour `- 6 / 12 -` à 13pt, ça donnait ~64pt alors que la vraie
+largeur Helvetica est ~46pt. Le rect avait donc 18pt de blanc
+à droite que le texte ne remplissait pas.
+
+Maintenant : nouveau module **`CombinePDF::WinAnsi`** qui
+embarque les largeurs AFM officielles d'Adobe pour Helvetica et
+Helvetica-Bold (256 entrées chacune). `WinAnsi.text_width(...)`
+calcule à ~1pt près. La pastille épouse précisément le texte.
+
+=== Format personnalisable + symboles
+
+Le format de couche acceptait déjà `%page%` et `%total%`. Mais
+les caractères non-ASCII (€, •, †, …, ", —, etc.) étaient envoyés
+au content stream en UTF-8 brut, donc rendus comme des séquences
+de caractères Latin-1 cassés (« â‚¬ », « â€¢ » au lieu de « € »,
+« • »).
+
+Maintenant : `AdvancedNumberer` encode ses textes via
+`WinAnsi.write` (le même helper qui sert à `TocBuilder`).
+Tous les caractères Latin-1 + symboles typographiques WinAnsi
+sont rendus correctement.
+
+==== Symboles disponibles
+
+Section dédiée dans le template `init` avec exemples :
+
+[source,yaml]
+----
+format: "%page%/%total%"           # → 6/12
+format: "%page% / %total%"         # → 6 / 12
+format: "- %page% / %total% -"     # → - 6 / 12 - (par défaut)
+format: "page %page% sur %total%"  # → page 6 sur 12
+format: "« %page%/%total% »"       # → « 6/12 »
+format: "• %page% / %total% •"     # → • 6 / 12 •
+format: "† %page% †"               # → † 6 †
+----
+
+Caractères supportés : ASCII + Latin-1 (accents français
+notamment) + symboles typographiques WinAnsi 0x80-0x9F (€ • † ‡
+… ‹ › « » " " ' ' – — ™ ‰ Œ œ Š Ÿ ƒ ‚ „). Hors WinAnsi → `?`.
+
+=== Refactor
+
+* Module `CombinePDF::WinAnsi` extrait dans `winansi.cr` : `write`,
+  `text_width`, `approx_width`, tables AFM Helvetica/Helvetica-Bold.
+* `AdvancedNumberer.escape_pdf_string` et `approx_text_width`
+  supprimés (devenus inutiles).
+* `TocBuilder.write_winansi` migrera vers `WinAnsi.write` dans
+  une itération ultérieure (pas refactorisé pour l'instant —
+  encapsulé indépendamment).
+
+=== Tests
+
+68 specs verts.
+
 == v1.0.31.8 — 2026-04-27
 
 **Polish de la pastille ovale.** Deux raffinements remontés sur

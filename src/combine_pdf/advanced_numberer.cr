@@ -206,7 +206,11 @@ module CombinePDF
       resolved = resolve_position(layer.position, page_num_pdf)
       v, h = parse_vh(resolved)
 
-      text_w = approx_text_width(text, layer.font_size)
+      # Largeur réelle du texte (table AFM Helvetica). Indispensable
+      # pour aligner correctement à droite : avec l'approximation
+      # `0.55 × len`, le texte « - 6 / 12 - » se calculait ~50 % trop
+      # large et finissait collé au bord, hors de la pastille.
+      text_w = WinAnsi.text_width(text, layer.font_size, layer.bold)
 
       x = case h
           when "left"   then layer.margin
@@ -256,10 +260,6 @@ module CombinePDF
       template.gsub("%page%", page.to_s).gsub("%total%", total.to_s)
     end
 
-    private def approx_text_width(text : String, font_size : Float64) : Float64
-      text.size * font_size * 0.55
-    end
-
     # Génère le content stream PDF pour toutes les couches d'une page.
     # Style "badge" = dessine un cadre arrondi gris pâle derrière.
     private def build_stream(layers : Array(Tuple(Float64, Float64, String, Config::Numbering::Layer, String))) : String
@@ -274,7 +274,9 @@ module CombinePDF
     end
 
     private def render_layer(io : IO, x : Float64, y : Float64, text : String, layer : Config::Numbering::Layer) : Nil
-      text_w = approx_text_width(text, layer.font_size)
+      # Largeur réelle Helvetica — la pastille épouse précisément la
+      # taille du texte, sans excès ni rognage.
+      text_w = WinAnsi.text_width(text, layer.font_size, layer.bold)
 
       # Style avec arrière-plan : on dessine le cadre AVANT le texte.
       if layer.style != "plain"
@@ -332,7 +334,12 @@ module CombinePDF
       io << format_number(r) << " " << format_number(g) << " " << format_number(b) << " rg\n"
       io << "/" << layer.font_key << " " << format_number(layer.font_size) << " Tf\n"
       io << format_number(x) << " " << format_number(y) << " Td\n"
-      io << "(" << escape_pdf_string(text) << ") Tj\n"
+      # Le format peut contenir des caractères Unicode (€, †, ‡, …,
+      # • – — « » “ ” etc.). On les convertit en bytes WinAnsi
+      # avant d'écrire le content stream — cf. CombinePDF::WinAnsi.
+      io << '('
+      WinAnsi.write(io, text)
+      io << ") Tj\n"
       io << "ET\n"
     end
 
@@ -385,10 +392,6 @@ module CombinePDF
       else
         sprintf("%.4f", n).sub(/0+$/, "").sub(/\.$/, ".0")
       end
-    end
-
-    private def escape_pdf_string(text : String) : String
-      text.gsub('\\', "\\\\").gsub('(', "\\(").gsub(')', "\\)")
     end
   end
 end

@@ -161,6 +161,26 @@ module CombinePDF
           #            — recommandé pour le numéro global, ça marque l'œil
           #   circle | cercle parfait
           #   square | rectangle à coins droits
+          #
+          # Format de chaîne :
+          #   * %page%   sera remplacé par le numéro de page courant
+          #   * %total%  sera remplacé par le nombre total de pages utiles
+          #
+          # Exemples de formats — combinez avec ce que vous voulez :
+          #   "%page%/%total%"         → 6/12       (compact)
+          #   "%page% / %total%"       → 6 / 12     (espacé)
+          #   "- %page% / %total% -"   → - 6 / 12 - (encadré tirets)
+          #   "page %page% sur %total%" → page 6 sur 12
+          #   "« %page%/%total% »"     → « 6/12 »   (guillemets français)
+          #   "• %page% / %total% •"   → • 6 / 12 • (puces)
+          #   "† %page% †"             → † 6 †      (croix)
+          #
+          # Caractères supportés : ASCII + Latin-1 + symboles
+          # typographiques WinAnsi (€ • † ‡ … ‹ › « » “ ” ' ' " " –
+          # — ™ ‰ Œ œ Š Ÿ ƒ ‚ „). Les caractères hors WinAnsi
+          # (dingbats Unicode ✦ ❖ ★ ♥, emojis, CJK…) sont remplacés
+          # par "?" — il faudrait charger ZapfDingbats ou embarquer
+          # une police TTF pour les rendre.
           numbering:
             enabled: true            # désactive toute la numérotation si false
 

@@ -10,6 +10,20 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.9 = centrage horizontal correct + format personnalisable :
+  #            * Nouveau module `WinAnsi` partagé entre TocBuilder et
+  #              AdvancedNumberer, avec table de largeurs Helvetica
+  #              AFM précise (regular + bold) — fini les pastilles
+  #              décentrées dues à `text.size × 0.55`.
+  #            * Format de couche admet désormais l'ensemble des
+  #              symboles WinAnsi : € • † ‡ … « » ' ' " " – — ™ ‰
+  #              Œ œ Š Ÿ ƒ ‚ „ et tous les accents Latin-1. Doc et
+  #              exemples ajoutés au template `init`.
+  #            * AdvancedNumberer encode désormais ses textes via
+  #              `WinAnsi.write` (avant : `escape_pdf_string` ne
+  #              faisait que l'échappement PDF, les caractères >
+  #              0x7F étaient envoyés en UTF-8 brut au viewer).
+  #
   # 1.0.31.8 = polish du rendu de la pastille `oval` :
   #            * Centrage vertical correct du texte dans la
   #              pastille (formule `cap_height/2` pour Helvetica
@@ -76,5 +90,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.8"
+  VERSION = "1.0.31.9"
 end
