@@ -3,6 +3,39 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.8 — 2026-04-27
+
+**Polish de la pastille ovale.** Deux raffinements remontés sur
+l'assemblage de référence.
+
+=== Centrage vertical correct dans la pastille
+
+Avant : le texte apparaissait légèrement décalé vers le haut
+dans l'oval, parce que le rectangle était positionné en partant
+de la baseline `y` moins une approximation grossière du
+descender (`0.22 × font_size`). Sur les pastilles 13pt c'était
+un décalage d'environ 1 pt — visible à l'œil.
+
+Maintenant : le rectangle est centré sur le centre visuel du
+texte, calculé comme `baseline + cap_height / 2`. Pour
+Helvetica, `cap_height ≈ 0.7 × font_size`, donc le centre
+visuel est à `y + 0.35 × font_size`. Le texte tombe pile au
+milieu de la pastille.
+
+=== Format global par défaut avec le total
+
+Avant : `format: "- %page% -"` → la pastille affichait juste
+`- 6 -` sans contexte.
+
+Maintenant : `format: "- %page% / %total% -"` → la pastille
+affiche `- 6 / 12 -`. Quand un musicien tient une seule page
+imprimée du livret, il sait combien de pages restent.
+
+=== Tests
+
+68 specs verts. Spec d'intégration mis à jour pour
+`(- 1 / 5 -)` à la place de `(- 1 -)`.
+
 == v1.0.31.7 — 2026-04-27
 
 **Rendu de la numérotation aligné sur le document de référence**

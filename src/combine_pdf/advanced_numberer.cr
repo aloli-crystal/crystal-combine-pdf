@@ -286,14 +286,18 @@ module CombinePDF
                 end
         pad_y = layer.font_size * 0.35
 
-        # Pour le rendu PDF, le texte est dessiné à la baseline `y`.
-        # Le glyphe descend sous la baseline (descender ≈ 20% de
-        # font_size). Le rectangle doit englober toute la hauteur.
-        descender = layer.font_size * 0.22
-        ry = y - descender - pad_y
+        # Centrage vertical du texte dans la pastille :
+        # * En PDF, `(text) Tj` dessine à partir de la baseline `y`.
+        # * Pour des chiffres/lettres ASCII (pas de descender visible)
+        #   le centre visuel du glyphe est à `baseline + cap_height/2`.
+        # * Pour Helvetica, cap_height ≈ 0.7 × font_size, donc le
+        #   centre visuel du texte est à `y + 0.35 × font_size`.
+        # On centre le rectangle sur ce point.
+        rh = layer.font_size + 2 * pad_y
+        text_visual_center_y = y + layer.font_size * 0.35
+        ry = text_visual_center_y - rh / 2
         rx = x - pad_x
         rw = text_w + 2 * pad_x
-        rh = layer.font_size + 2 * pad_y
 
         # Rayon : la pastille `oval` est totalement arrondie (pill).
         # `circle` est un cercle parfait (carré arrondi à 50%).

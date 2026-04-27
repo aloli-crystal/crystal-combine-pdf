@@ -245,10 +245,12 @@ module CombinePDF
 
         # Défauts pour la couche globale (numéro de page du livret).
         # Style "oval" pour avoir une pastille discrète qui marque
-        # quand même l'œil (cf. document de référence).
+        # quand même l'œil (cf. document de référence). Format
+        # `- N / T -` qui inclut le total : utile pour savoir où on
+        # en est dans le livret quand on tient juste une page.
         def self.global_default : Layer
           new(
-            format: "- %page% -",
+            format: "- %page% / %total% -",
             style: "oval",
             position: "bottom-right",
             font_size: 13.0,

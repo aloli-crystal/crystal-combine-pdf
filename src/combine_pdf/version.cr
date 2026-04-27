@@ -10,6 +10,14 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.8 = polish du rendu de la pastille `oval` :
+  #            * Centrage vertical correct du texte dans la
+  #              pastille (formule `cap_height/2` pour Helvetica
+  #              au lieu de l'approximation par `descender`).
+  #            * Format global par défaut : `- %page% / %total% -`
+  #              (avec le total) au lieu de `- %page% -` — utile
+  #              quand on tient juste une page du livret.
+  #
   # 1.0.31.7 = rendu de la numérotation aligné sur le doc de
   #            référence laguiole-messe :
   #            * Couches `bold:` et `italic:` sur Layer (Helvetica
@@ -68,5 +76,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.7"
+  VERSION = "1.0.31.8"
 end

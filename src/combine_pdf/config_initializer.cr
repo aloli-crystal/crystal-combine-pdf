@@ -164,10 +164,13 @@ module CombinePDF
           numbering:
             enabled: true            # désactive toute la numérotation si false
 
-            # Numéro global (ex: "- 6 -" sur 12 pages utiles).
+            # Numéro global (ex: "- 6 / 12 -" sur la 6e page d'un
+            # livret de 12 pages utiles). Le total est utile : un
+            # musicien qui tient une page seule sait combien de pages
+            # restent.
             global:
               enabled: true
-              format: "- %page% -"
+              format: "- %page% / %total% -"
               style: oval            # pastille gris pâle bordure fine
               position: bottom-right
               font_size: 13
