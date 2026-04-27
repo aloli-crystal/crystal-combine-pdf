@@ -117,7 +117,13 @@ module CombinePDF
         # refusent de tracer le texte parce qu'ils ne savent pas
         # inférer la police standard depuis son nom long.
         needed_fonts = layers.map { |l| l[3] }.uniq
-        ensure_fonts_in_page_resources(reader, page, needed_fonts)
+        # Si l'un des textes contient un dingbat Unicode (★ ♥ ✦ ✓ ✗
+        # …), on doit AUSSI injecter ZapfDingbats — cf.
+        # `render_layer` qui découpe en runs.
+        needs_zapf = layers.any? do |l|
+          l[2].each_char.any? { |ch| ZapfDingbats.dingbat?(ch) }
+        end
+        ensure_fonts_in_page_resources(reader, page, needed_fonts, needs_zapf)
 
         stream = build_stream(layers)
         page.add_content_stream(stream) unless stream.empty?
@@ -131,9 +137,16 @@ module CombinePDF
     # dictionnaire de Resources et/ou de Font si absents ; copie
     # les dictionnaires partagés via référence indirecte avant de
     # les modifier (pour ne pas contaminer d'autres pages).
+    #
+    # `needs_zapf` : `true` si l'un des textes contient un dingbat
+    # Unicode → on déclare aussi ZapfDingbats sous la clé
+    # `/__CCP_ZD__`. ZapfDingbats utilise son propre encoding
+    # (StandardEncoding par défaut, pas WinAnsi) — chaque dingbat
+    # est référencé par son codepoint propre dans la police.
     private def ensure_fonts_in_page_resources(
       reader : ::PDF::Reader, page : ::PDF::ReaderPage,
       layers : Array(Config::Numbering::Layer),
+      needs_zapf : Bool = false,
     ) : Nil
       page_dict = page.page_dict
 
@@ -149,6 +162,17 @@ module CombinePDF
         entry["BaseFont"] = ::PDF::Objects::Name.new(layer.font_basefont)
         entry["Encoding"] = ::PDF::Objects::Name.new("WinAnsiEncoding")
         font[key] = entry
+      end
+
+      if needs_zapf && font[ZapfDingbats::PDF_FONT_KEY]?.nil?
+        zapf = ::PDF::Objects::Dictionary.new
+        zapf["Type"] = ::PDF::Objects::Name.new("Font")
+        zapf["Subtype"] = ::PDF::Objects::Name.new("Type1")
+        zapf["BaseFont"] = ::PDF::Objects::Name.new(ZapfDingbats::BASE_FONT)
+        # PAS d'Encoding explicite : ZapfDingbats utilise sa propre
+        # encoding interne (la table mappe les codepoints 0x21-0xFE
+        # sur les ~200 dingbats de la police).
+        font[ZapfDingbats::PDF_FONT_KEY] = zapf
       end
 
       resources["Font"] = font
@@ -274,9 +298,21 @@ module CombinePDF
     end
 
     private def render_layer(io : IO, x : Float64, y : Float64, text : String, layer : Config::Numbering::Layer) : Nil
-      # Largeur réelle Helvetica — la pastille épouse précisément la
-      # taille du texte, sans excès ni rognage.
-      text_w = WinAnsi.text_width(text, layer.font_size, layer.bold)
+      # Découpe le texte en runs Helvetica vs ZapfDingbats. Permet
+      # à l'utilisateur d'écrire des dingbats Unicode (★ ♥ ✦ ✓ ✗ →
+      # cf. ZapfDingbats.UNICODE_TO_ZAPF) directement dans son
+      # `format:` YAML, sans avoir à embarquer une police TTF.
+      runs = ZapfDingbats.split_runs(text)
+
+      # Largeur totale = somme des largeurs de chaque run.
+      text_w = runs.sum do |kind, segment|
+        case kind
+        when :zapf
+          segment.size * ZapfDingbats.width(layer.font_size)
+        else
+          WinAnsi.text_width(segment, layer.font_size, layer.bold)
+        end
+      end
 
       # Style avec arrière-plan : on dessine le cadre AVANT le texte.
       if layer.style != "plain"
@@ -332,14 +368,33 @@ module CombinePDF
       r, g, b = layer.color
       io << "BT\n"
       io << format_number(r) << " " << format_number(g) << " " << format_number(b) << " rg\n"
-      io << "/" << layer.font_key << " " << format_number(layer.font_size) << " Tf\n"
       io << format_number(x) << " " << format_number(y) << " Td\n"
-      # Le format peut contenir des caractères Unicode (€, †, ‡, …,
-      # • – — « » “ ” etc.). On les convertit en bytes WinAnsi
-      # avant d'écrire le content stream — cf. CombinePDF::WinAnsi.
-      io << '('
-      WinAnsi.write(io, text)
-      io << ") Tj\n"
+
+      # Pour chaque run, on switch de font puis on dessine. `Tj`
+      # avance automatiquement le curseur de la largeur du glyphe
+      # rendu, donc on n'a pas besoin de Td entre les runs.
+      runs.each do |kind, segment|
+        if kind == :zapf
+          io << "/" << ZapfDingbats::PDF_FONT_KEY << " " << format_number(layer.font_size) << " Tf\n"
+          # Hex string : <XX YY ZZ> où chaque XX est un byte
+          # ZapfDingbats.
+          io << '<'
+          segment.each_char do |ch|
+            cp = ZapfDingbats.codepoint_for(ch)
+            io << "%02X" % cp.not_nil! if cp
+          end
+          io << "> Tj\n"
+        else
+          io << "/" << layer.font_key << " " << format_number(layer.font_size) << " Tf\n"
+          # Le format peut contenir des caractères Unicode (€, †, ‡,
+          # …, • – — « » " " etc.) — convertis en bytes WinAnsi
+          # avant l'écriture (cf. CombinePDF::WinAnsi).
+          io << '('
+          WinAnsi.write(io, segment)
+          io << ") Tj\n"
+        end
+      end
+
       io << "ET\n"
     end
 

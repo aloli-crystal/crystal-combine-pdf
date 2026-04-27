@@ -10,6 +10,14 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.11 = support des dingbats Unicode (★ ♥ ✦ ✓ ✗ ❖ ➤ ✿…)
+  #             via ZapfDingbats (Type1 standard PDF, garanti dans
+  #             tous les viewers, pas d'embedding nécessaire). Le
+  #             texte d'une couche est découpé en runs Helvetica
+  #             vs ZapfDingbats — chaque run est rendu avec la
+  #             bonne police. ~50 dingbats mappés depuis leurs
+  #             codepoints Unicode.
+  #
   # 1.0.31.10 = format par défaut « • %page% / %total% • » (puces
   #             typographiques au lieu des tirets ASCII).
   #
@@ -93,5 +101,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.10"
+  VERSION = "1.0.31.11"
 end

@@ -175,12 +175,24 @@ module CombinePDF
           #   "« %page%/%total% »"     → « 6/12 »   (guillemets français)
           #   "† %page% †"             → † 6 †      (croix)
           #
-          # Caractères supportés : ASCII + Latin-1 + symboles
-          # typographiques WinAnsi (€ • † ‡ … ‹ › « » “ ” ' ' " " –
-          # — ™ ‰ Œ œ Š Ÿ ƒ ‚ „). Les caractères hors WinAnsi
-          # (dingbats Unicode ✦ ❖ ★ ♥, emojis, CJK…) sont remplacés
-          # par "?" — il faudrait charger ZapfDingbats ou embarquer
-          # une police TTF pour les rendre.
+          # Caractères supportés :
+          #   * ASCII + Latin-1 (accents français è é ê à ç ô …)
+          #   * Symboles typographiques WinAnsi (€ • † ‡ … ‹ › « »
+          #     " " ' ' – — ™ ‰ Œ œ Š Ÿ ƒ ‚ „)
+          #   * Dingbats ZapfDingbats : étoiles (★ ☆ ✦ ✧ ✩ ✪ ✫ ✬ ✭
+          #     ✮ ✯ ✰), cœurs (♥ ❤), pique/trèfle/carreau (♠ ♣ ♦),
+          #     coches (✓ ✔ ✗ ✘), croix (✚ ✙ ✛ ✜ ✝ ✞ ✟ ✠), flèches
+          #     (→ ➡ ➤ ➢), ornements (✿ ❀ ❁ ❖ ❧)
+          #
+          # Exemples avec dingbats :
+          #   "★ %page% / %total% ★"   → ★ 6 / 12 ★ (étoiles)
+          #   "♥ %page% / %total% ♥"   → ♥ 6 / 12 ♥ (cœurs)
+          #   "❖ %page% / %total% ❖"   → ❖ 6 / 12 ❖ (losanges)
+          #   "✦ %page% / %total% ✦"   → ✦ 6 / 12 ✦ (étoiles 4-pts)
+          #
+          # Pour les caractères hors de tout cela (emojis, CJK,
+          # dingbats Unicode non listés), substitués par "?" — il
+          # faudrait embarquer une police TTF pour les rendre.
           numbering:
             enabled: true            # désactive toute la numérotation si false
 

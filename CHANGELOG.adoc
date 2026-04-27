@@ -3,6 +3,74 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.11 — 2026-04-27
+
+**Dingbats Unicode dans les formats de numérotation.** Étoiles,
+cœurs, coches, croix, flèches et ornements floraux sont désormais
+rendus correctement dans les pastilles. Aucune police TTF
+embarquée — on utilise ZapfDingbats, le Type1 standard PDF garanti
+présent dans tous les viewers.
+
+=== Exemples
+
+[source,yaml]
+----
+format: "★ %page% / %total% ★"   # → ★ 6 / 12 ★
+format: "♥ %page% / %total% ♥"   # → ♥ 6 / 12 ♥
+format: "❖ %page% / %total% ❖"   # → ❖ 6 / 12 ❖
+format: "✦ %page% / %total% ✦"   # → ✦ 6 / 12 ✦
+format: "✓ %page% / %total% ✓"   # → ✓ 6 / 12 ✓
+----
+
+=== Dingbats supportés
+
+[cols="1,3"]
+|===
+| Catégorie | Caractères mappés
+
+| Étoiles
+| ★ ☆ ✦ ✧ ✩ ✪ ✫ ✬ ✭ ✮ ✯ ✰
+
+| Cœurs / cartes à jouer
+| ♥ ❤ ♠ ♣ ♦
+
+| Coches & croix
+| ✓ ✔ ✗ ✘ ✚ ✙ ✛ ✜ ✝ ✞ ✟ ✠
+
+| Flèches
+| → ➡ ➤ ➢
+
+| Ornements
+| ✿ ❀ ❁ ❖ ❧
+
+| Chiffres cerclés
+| ➀ ➁ ➂ ➃ ➄ ➅ ➆ ➇ ➈ ➉
+|===
+
+(Liste complète : voir `CombinePDF::ZapfDingbats::UNICODE_TO_ZAPF`.)
+
+=== Implémentation
+
+* Nouveau module `CombinePDF::ZapfDingbats` :
+** `dingbat?(ch)` : `true` si `ch` est mappable
+** `codepoint_for(ch)` : codepoint ZapfDingbats (UInt8)
+** `width(font_size)` : largeur (approximation 0.7em)
+** `split_runs(text)` : découpe en runs Helvetica/Zapf
+* `AdvancedNumberer#render_layer` itère sur les runs : pour
+  chaque segment, switch de font (`/__CCP_HV__` ou
+  `/__CCP_ZD__`) et écrit le texte. `Tj` avance automatiquement
+  le curseur entre runs.
+* `AdvancedNumberer#ensure_fonts_in_page_resources` injecte
+  ZapfDingbats sous la clé `/__CCP_ZD__` quand un dingbat est
+  détecté. Pas d'`Encoding` explicite : ZapfDingbats utilise sa
+  propre encoding interne (codepoints 0x21-0xFE).
+
+=== Tests
+
+69 specs verts (68 + 1 spec d'intégration : config avec
+`★ %page% / %total% ★`, vérifie que `ZapfDingbats` et
+`__CCP_ZD__` sont présents dans le PDF de sortie).
+
 == v1.0.31.10 — 2026-04-27
 
 **Format par défaut : `• %page% / %total% •`** (puces typographiques

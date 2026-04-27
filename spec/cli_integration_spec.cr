@@ -304,6 +304,26 @@ describe "CLI déclarative" do
       pdf_content.includes?("/Subtype /Link").should be_true
     end
 
+    it "rend les dingbats Unicode via ZapfDingbats" do
+      dir = File.join(SpecHelper::TMP_DIR, "build-dingbats")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "p1.pdf"), page_count: 2)
+
+      CombinePDF::ConfigInitializer.init(dir)
+      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      content = File.read(yml).gsub(
+        "format: \"• %page% / %total% •\"",
+        "format: \"★ %page% / %total% ★\"",
+      )
+      File.write(yml, content)
+
+      output_path = CombinePDF::BookletBuilder.from_dir(dir).build
+      pdf = File.read(output_path)
+      # ZapfDingbats doit être déclarée dans /Resources /Font
+      pdf.should contain("ZapfDingbats")
+      pdf.should contain("__CCP_ZD__")
+    end
+
     it "applique le filigrane si configuré" do
       dir = File.join(SpecHelper::TMP_DIR, "build-watermark")
       Dir.mkdir_p(dir)
