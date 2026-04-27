@@ -110,11 +110,76 @@ module CombinePDF
 
         next if layers.empty?
 
+        # CRITIQUE : avant d'écrire un content stream qui référence
+        # `/CCPHV X Tf`, on s'assure que `/CCPHV` est déclaré dans
+        # le `/Resources /Font` de la page. Sans ça, certains
+        # viewers PDF (Preview macOS, mupdf, certains visualiseurs
+        # Web) refusent de tracer le texte parce qu'ils ne savent
+        # pas inférer la police standard depuis son nom long. Adobe
+        # Reader le ferait, mais on cible la compatibilité maximale.
+        ensure_helvetica_in_page_resources(reader, page)
+
         stream = build_stream(layers)
         page.add_content_stream(stream) unless stream.empty?
       end
 
       reader.save(output)
+    end
+
+    # Nom unique attribué à notre Helvetica injectée dans le
+    # `/Resources /Font` de chaque page. Préfixé de `__CCP_` pour
+    # éviter les collisions avec n'importe quel nom de police déjà
+    # déclaré (`/F1`, `/F2`, `/Helvetica`, etc.).
+    HELVETICA_FONT_KEY = "__CCP_HV__"
+
+    # Garantit que la police Helvetica WinAnsi est disponible sous
+    # le nom `/__CCP_HV__` dans le dictionnaire `/Resources /Font`
+    # de la page. Crée le dictionnaire de Resources et/ou de Font
+    # si absent ; copie les dictionnaires partagés via une
+    # référence indirecte avant de les modifier (pour ne pas
+    # contaminer d'autres pages).
+    private def ensure_helvetica_in_page_resources(reader : ::PDF::Reader, page : ::PDF::ReaderPage) : Nil
+      page_dict = page.page_dict
+
+      resources = unshare_dict(reader, page_dict["Resources"]?)
+      font = unshare_dict(reader, resources["Font"]?)
+
+      return if font[HELVETICA_FONT_KEY]?
+
+      helvetica = ::PDF::Objects::Dictionary.new
+      helvetica["Type"] = ::PDF::Objects::Name.new("Font")
+      helvetica["Subtype"] = ::PDF::Objects::Name.new("Type1")
+      helvetica["BaseFont"] = ::PDF::Objects::Name.new("Helvetica")
+      helvetica["Encoding"] = ::PDF::Objects::Name.new("WinAnsiEncoding")
+      font[HELVETICA_FONT_KEY] = helvetica
+
+      resources["Font"] = font
+      page_dict["Resources"] = resources
+    end
+
+    # Renvoie un dictionnaire qu'on peut modifier en place sans
+    # impacter d'autres pages :
+    # * `nil` ou type inattendu → nouveau dict vide
+    # * `Dictionary` inline → renvoyé tel quel (déjà local à la page)
+    # * `Reference` → résolu, copié superficiellement, retourné
+    private def unshare_dict(reader : ::PDF::Reader, obj : ::PDF::Objects::Base?) : ::PDF::Objects::Dictionary
+      case obj
+      when Nil
+        ::PDF::Objects::Dictionary.new
+      when ::PDF::Objects::Dictionary
+        obj
+      when ::PDF::Objects::Reference
+        resolved = reader.resolve(obj)
+        if dict = resolved.as?(::PDF::Objects::Dictionary)
+          copy = ::PDF::Objects::Dictionary.new
+          dict.each { |k, v| copy[k] = v }
+          copy
+        else
+          ::PDF::Objects::Dictionary.new
+        end
+      else
+        ::PDF::Objects::Dictionary.new
+      end
     end
 
     # Construit le mapping page index → {n_dans_partition, total_partition}.
@@ -234,7 +299,7 @@ module CombinePDF
       r, g, b = layer.color
       io << "BT\n"
       io << format_number(r) << " " << format_number(g) << " " << format_number(b) << " rg\n"
-      io << "/Helvetica " << format_number(layer.font_size) << " Tf\n"
+      io << "/" << HELVETICA_FONT_KEY << " " << format_number(layer.font_size) << " Tf\n"
       io << format_number(x) << " " << format_number(y) << " Td\n"
       io << "(" << escape_pdf_string(text) << ") Tj\n"
       io << "ET\n"

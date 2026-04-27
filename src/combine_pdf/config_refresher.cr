@@ -39,7 +39,12 @@ module CombinePDF
       raw : String,
       pdfs_on_disk : Array(String),
     ) : Tuple(String, String)
-      lines = raw.lines
+      # `chomp: false` PRÉSERVE le `\n` final de chaque ligne. En
+      # Crystal (différemment de Ruby), `String#lines` supprime les
+      # `\n` par défaut (`chomp: true`) ; sans cette option toutes
+      # les lignes seraient ré-écrites sans séparateur et le YAML
+      # ressortirait en une seule ligne géante.
+      lines = raw.lines(chomp: false)
       files_idx = lines.index(&.starts_with?("files:"))
 
       unless files_idx

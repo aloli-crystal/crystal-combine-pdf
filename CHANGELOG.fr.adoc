@@ -3,6 +3,74 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.6 — 2026-04-27
+
+**Trois correctifs critiques** détectés sur un assemblage réel :
+numérotation invisible sur certains PDF, `--refresh` qui
+corrompait le YAML, et UX des sous-commandes améliorée.
+
+=== Correctifs
+
+==== Numérotation visible quel que soit le PDF source
+
+Avant : sur certains PDF d'entrée (générés par MS Word, Pages,
+LibreOffice…), les numéros de page étaient bien injectés dans
+le content stream mais ne s'affichaient pas dans le viewer. Cause
+trouvée : nos opérateurs `/Helvetica X Tf` référençaient une
+police absente du dictionnaire `/Resources /Font` de la page.
+Adobe Reader inférait silencieusement la police standard, mais
+Preview (macOS), mupdf et plusieurs viewers Web refusaient.
+
+Fix : `AdvancedNumberer` et `Numberer` injectent désormais une
+entrée `/__CCP_HV__` (Helvetica WinAnsi Type1 standard) dans le
+`/Resources /Font` de chaque page modifiée. Le content stream
+référence ce nom unique, garanti sans collision avec les polices
+existantes du PDF source. Les dictionnaires `/Resources` et
+`/Font` partagés via référence indirecte sont copiés
+superficiellement avant modification, pour ne pas contaminer
+d'autres pages.
+
+==== `--refresh` ne corrompt plus le YAML
+
+Avant : après un `--refresh`, le `.crystal-combine-pdf.yml`
+ressortait en une seule ligne géante (« boubligoulba »). Cause :
+`String#lines` en Crystal supprime les `\n` finaux par défaut
+(`chomp: true`), à l'inverse de Ruby. Les lignes étaient
+concaténées sans séparateur lors de la ré-écriture.
+
+Fix : `ConfigRefresher#update_files_section` utilise désormais
+`raw.lines(chomp: false)` pour préserver les `\n` originaux.
+
+==== Sous-commandes `init` / `refresh` / `build`
+
+Trois nouvelles sous-commandes plus naturelles à taper que les
+flags long :
+
+[cols="1,1"]
+|===
+| Avant | Maintenant aussi
+
+| `crystal-combine-pdf --init`
+| `crystal-combine-pdf init`
+
+| `crystal-combine-pdf --refresh`
+| `crystal-combine-pdf refresh`
+
+| `crystal-combine-pdf` (implicite)
+| `crystal-combine-pdf build` (explicite)
+|===
+
+Les flags `-i` / `-R` et `--init` / `--refresh` restent
+disponibles pour la rétro-compatibilité ; les sous-commandes ne
+sont qu'un alias.
+
+=== Tests
+
+68 specs verts inchangés. Validation manuelle sur le scénario
+exact rapporté par l'utilisateur (rename d'un PDF + refresh) sur
+un dossier réel : YAML conservé propre, entrée disparue
+commentée avec annotation date, nouvelle entrée ajoutée en fin.
+
 == v1.0.31.5 — 2026-04-27
 
 **Format de page configurable.** Le shard générait jusqu'ici toutes

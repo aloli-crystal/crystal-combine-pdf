@@ -55,10 +55,55 @@ module CombinePDF
         next if @options.skip_pages.includes?(page_num)
 
         stream = build_page_stream(page.width, page.height, page_num, total, page_to_partition[idx]?)
-        page.add_content_stream(stream) unless stream.empty?
+        next if stream.empty?
+
+        # Voir AdvancedNumberer pour le pourquoi : on injecte
+        # `/__CCP_HV__` dans le `/Resources /Font` de la page pour
+        # que le viewer trouve la police référencée par notre
+        # content stream. Sans ça, certains viewers refusent de
+        # tracer le texte.
+        ensure_helvetica_in_page_resources(reader, page)
+        page.add_content_stream(stream)
       end
 
       reader.save(output)
+    end
+
+    HELVETICA_FONT_KEY = "__CCP_HV__"
+
+    private def ensure_helvetica_in_page_resources(reader : ::PDF::Reader, page : ::PDF::ReaderPage) : Nil
+      page_dict = page.page_dict
+      resources = unshare_dict(reader, page_dict["Resources"]?)
+      font = unshare_dict(reader, resources["Font"]?)
+      return if font[HELVETICA_FONT_KEY]?
+      helvetica = ::PDF::Objects::Dictionary.new
+      helvetica["Type"] = ::PDF::Objects::Name.new("Font")
+      helvetica["Subtype"] = ::PDF::Objects::Name.new("Type1")
+      helvetica["BaseFont"] = ::PDF::Objects::Name.new("Helvetica")
+      helvetica["Encoding"] = ::PDF::Objects::Name.new("WinAnsiEncoding")
+      font[HELVETICA_FONT_KEY] = helvetica
+      resources["Font"] = font
+      page_dict["Resources"] = resources
+    end
+
+    private def unshare_dict(reader : ::PDF::Reader, obj : ::PDF::Objects::Base?) : ::PDF::Objects::Dictionary
+      case obj
+      when Nil
+        ::PDF::Objects::Dictionary.new
+      when ::PDF::Objects::Dictionary
+        obj
+      when ::PDF::Objects::Reference
+        resolved = reader.resolve(obj)
+        if dict = resolved.as?(::PDF::Objects::Dictionary)
+          copy = ::PDF::Objects::Dictionary.new
+          dict.each { |k, v| copy[k] = v }
+          copy
+        else
+          ::PDF::Objects::Dictionary.new
+        end
+      else
+        ::PDF::Objects::Dictionary.new
+      end
     end
 
     # Returns an array indexed by 0-based page index, each entry a
@@ -112,7 +157,7 @@ module CombinePDF
         io << "q\n"
         io << format_number(r) << " " << format_number(g) << " " << format_number(b) << " rg\n"
         io << "BT\n"
-        io << "/Helvetica " << format_number(@options.font_size) << " Tf\n"
+        io << "/" << HELVETICA_FONT_KEY << " " << format_number(@options.font_size) << " Tf\n"
         lines.each do |entry|
           x, y, text = entry
           io << format_number(x) << " " << format_number(y) << " Td\n"

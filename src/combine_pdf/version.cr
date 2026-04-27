@@ -10,6 +10,19 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.6 = trois fix critiques :
+  #            1. Numérotation visible : la police Helvetica est
+  #               désormais injectée dans `/Resources /Font` de chaque
+  #               page avant l'écriture du content stream. Sans ce
+  #               correctif, certains viewers (Preview macOS, mupdf,
+  #               viewers Web) refusaient de tracer le texte.
+  #            2. `--refresh` ne corrompt plus le YAML : `String#lines`
+  #               retire les `\n` par défaut en Crystal (différence
+  #               avec Ruby) — `chomp: false` ajouté.
+  #            3. Sous-commandes `init` / `refresh` / `build` en plus
+  #               des flags `--init` / `--refresh`. Plus naturelles
+  #               à taper.
+  #
   # 1.0.31.5 = format de page configurable pour les pages générées
   #            par le shard (TOC, pages blanches, futurs entêtes/
   #            pieds-de-page) via le réglage `paper_size:` du YAML.
@@ -42,5 +55,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.5"
+  VERSION = "1.0.31.6"
 end

@@ -34,22 +34,26 @@ hide_partition_when_single = true
 
 parser = OptionParser.new do |p|
   p.banner = <<-BANNER
-    Usage : crystal-combine-pdf [options]                  (mode déclaratif)
-            crystal-combine-pdf SOUS-COMMANDE [options] FICHIERS...
+    Usage : crystal-combine-pdf SOUS-COMMANDE [options]
+            crystal-combine-pdf [options] FICHIERS...
 
     Mode déclaratif (recommandé pour les livrets) :
-      crystal-combine-pdf --init [--recursive]
-        Crée un fichier .crystal-combine-pdf.yml dans le dossier courant,
-        peuplé avec la liste des PDF présents.
+      crystal-combine-pdf init [-r, --recursive]
+        Synonyme : --init / -i
+        Crée un fichier .crystal-combine-pdf.yml dans le dossier
+        courant, peuplé avec la liste des PDF présents.
 
-      crystal-combine-pdf --refresh [--recursive]
-        Met à jour la liste `files:` du YAML : ajoute en fin les nouveaux
-        PDF, commente les entrées dont le fichier a disparu. Préserve
-        commentaires, ordre et titres existants.
+      crystal-combine-pdf refresh [-r, --recursive]
+        Synonyme : --refresh / -R
+        Met à jour la liste `files:` du YAML : ajoute en fin les
+        nouveaux PDF, commente les entrées dont le fichier a
+        disparu. Préserve commentaires, ordre et titres existants.
 
+      crystal-combine-pdf build
       crystal-combine-pdf
-        Construit le livret depuis .crystal-combine-pdf.yml du dossier
-        courant : assemble, numérote, ajoute filigrane et bookmarks.
+        Construit le livret depuis .crystal-combine-pdf.yml du
+        dossier courant : assemble, numérote, ajoute filigrane,
+        page de titre + sommaire cliquable.
 
     Sous-commandes historiques :
       number FICHIER                Numérote les pages d'un PDF existant
@@ -104,6 +108,28 @@ end
 positional = [] of String
 parser.unknown_args { |args| positional = args }
 parser.parse(ARGV)
+
+# Sous-commandes mode déclaratif : `init`, `refresh`, `build`
+# (équivalentes aux flags `--init`, `--refresh`, ou aucun flag).
+# Permettent une UX plus naturelle :
+#   crystal-combine-pdf init       au lieu de crystal-combine-pdf --init
+#   crystal-combine-pdf refresh    au lieu de crystal-combine-pdf --refresh
+#   crystal-combine-pdf build      explicitement (vs argument vide)
+if !positional.empty?
+  case positional.first
+  when "init"
+    mode_init = true
+    positional = positional[1..]
+  when "refresh"
+    mode_refresh = true
+    positional = positional[1..]
+  when "build"
+    # Synonyme explicite du mode déclaratif sans argument :
+    # on consomme le mot pour que `positional.empty?` plus loin
+    # déclenche la branche `build`.
+    positional = positional[1..]
+  end
+end
 
 # ────────────────────────────────────────────────────────────────────
 # Routing : déclaratif d'abord (--init / --refresh / build par défaut),
