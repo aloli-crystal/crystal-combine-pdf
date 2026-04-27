@@ -99,17 +99,42 @@ géométrie réelle de chaque `MediaBox`.
 
 == Feuille de route
 
+=== Livré
+
 * **v1.0.31.1** — ✅ API ISO du module + API d'instance `PDF`
   (`<<`, `>>`, `insert`, `remove`, `pages`, `page_count`,
   `new_page`, `title=`, `author=`, `number_pages`, `save`,
   `to_pdf`).
-* **v1.0.31.2** — classe `Page` (`textbox`, `rotate_*`,
-  `mediabox`, `secure_injection`, …), `stamp_page` pour
-  filigranes/numérotation par composition de pages plutôt que
-  mise à jour incrémentale.
-* **v1.0.31.3** — chiffrement (40/128/256 bits), `secured?`.
-* **v1.0.31.4** — signatures de type PAdES.
+* **v1.0.31.2** — ✅ Mode déclaratif `.crystal-combine-pdf.yml`
+  (`--init`, `--refresh`, `--recursive`, build par défaut).
+  Refonte de la numérotation : 15 positions cardinales +
+  4 duplex-aware (`outer-*` / `inner-*`), 5 styles
+  (`plain`/`badge`/`circle`/`square`/`oval`), couverture
+  cover-aware, filigrane via `crystal-watermark`.
+* **v1.0.31.3** — ✅ Compatibilité PDF étendue (xref streams 1.5+,
+  object streams, scans CCITT, JPEG, LilyPond…) — tous les PDF du
+  marché lisibles sans pré-traitement qpdf.
+
+=== À venir
+
+* **v1.0.31.4** — bookmarks PDF (`/Outlines`) + page TOC textuelle
+  cliquable + header de titre par fichier.
+* **v1.0.31.5** — chiffrement (40/128/256 bits), `secured?`.
+* **v1.0.31.6** — signatures de type PAdES.
 * (En continu) — déduplication des ressources lors de la fusion.
+
+=== Idées d'amélioration
+
+* **Site web** — interface en ligne pour assembler les livrets sans
+  installer Crystal : glisser-déposer des PDF, réordonnage à la
+  souris, prévisualisation, bouton « Construire » qui renvoie le PDF
+  fini. Probablement bâti sur Kemal ou Lucky côté serveur, avec un
+  front HTML+HTMX simple. Hébergement ALOLI.
+* **Application standalone** — GUI desktop multi-plateforme pour le
+  même workflow que la CLI, sans avoir à ouvrir un terminal.
+  Pistes à étudier : webview native (lib `crystal-webview` ou GTK
+  WebKit), ou TUI ncurses/termbox pour rester dans l'esprit
+  binaire-unique.
 
 == Installation
 

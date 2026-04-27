@@ -97,16 +97,41 @@ geometry read from the actual `MediaBox` of every page.
 
 == Roadmap
 
+=== Shipped
+
 * **v1.0.31.1** — ✅ ISO-compatible module + `PDF` instance API
   (`<<`, `>>`, `insert`, `remove`, `pages`, `page_count`,
   `new_page`, `title=`, `author=`, `number_pages`, `save`,
   `to_pdf`).
-* **v1.0.31.2** — `Page` wrapper class (`textbox`, `rotate_*`,
-  `mediabox`, `secure_injection`, …), `stamp_page` for watermarks
-  and page numbers via composition rather than incremental update.
-* **v1.0.31.3** — encryption (40/128/256 bits), `secured?`.
-* **v1.0.31.4** — PAdES-style signatures.
+* **v1.0.31.2** — ✅ Declarative `.crystal-combine-pdf.yml` mode
+  (`--init`, `--refresh`, `--recursive`, default-build).
+  Numbering rewrite: 15 cardinal positions + 4 duplex-aware
+  (`outer-*` / `inner-*`), 5 styles
+  (`plain`/`badge`/`circle`/`square`/`oval`), cover-aware
+  numbering, watermarks via `crystal-watermark`.
+* **v1.0.31.3** — ✅ Extended PDF compatibility (xref streams 1.5+,
+  object streams, CCITT scans, JPEGs, LilyPond, …) — every PDF in
+  the wild now readable without qpdf preprocessing.
+
+=== Upcoming
+
+* **v1.0.31.4** — PDF bookmarks (`/Outlines`) + clickable text
+  TOC page + per-file title header.
+* **v1.0.31.5** — encryption (40/128/256 bits), `secured?`.
+* **v1.0.31.6** — PAdES-style signatures.
 * (Ongoing) — resource deduplication when merging.
+
+=== Improvement ideas
+
+* **Web app** — online interface to assemble booklets without
+  installing Crystal: drag-and-drop PDFs, reorder by mouse, preview,
+  one "Build" button that returns the finished PDF. Likely Kemal
+  or Lucky on the server side with a simple HTML+HTMX front. ALOLI
+  hosting.
+* **Standalone desktop app** — cross-platform GUI for the same
+  workflow as the CLI, no terminal needed. To investigate:
+  native webview (`crystal-webview` lib or GTK WebKit), or a
+  ncurses/termbox TUI to keep the single-binary spirit.
 
 == Installation
 
