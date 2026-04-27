@@ -36,16 +36,10 @@ module CombinePDF
   #   le glyphe `?` ou seront mangés selon le viewer.
   # * Annotations Link sans bordure, action GoTo simple.
   class TocBuilder
-    # Format A4 par défaut. Le merger n'impose pas de format
-    # particulier — un livret peut mélanger A4 et Letter — mais
-    # la TOC est toujours générée en A4 pour être lisible quel que
-    # soit le contenu.
-    PAGE_WIDTH    = 595.0
-    PAGE_HEIGHT   = 842.0
-    MARGIN        =  72.0
-    LINE_GAP      =   4.0 # espacement vertical entre lignes
-    BLOCK_GAP     =  18.0 # espacement entre blocs (titre/sous-titre/liste)
-    NUM_COL_WIDTH =  30.0 # largeur réservée pour les numéros de page
+    # Constantes de mise en page indépendantes du format papier.
+    MARGIN    = 72.0 # marge intérieure (1 inch)
+    LINE_GAP  =  4.0 # espacement vertical entre lignes
+    BLOCK_GAP = 18.0 # espacement entre blocs (titre/sous-titre/liste)
 
     # Une entrée du sommaire : titre affiché + numéro de page +
     # référence à la page cible (sera remappée par le merger).
@@ -56,8 +50,24 @@ module CombinePDF
 
     @config : Config
     @entries : Array(Entry)
+    # Dimensions résolues depuis `config.toc.page.paper_size` ou,
+    # à défaut, `config.paper_size`. Stockées en points.
+    getter page_width : Float64
+    getter page_height : Float64
 
     def initialize(@config : Config, @entries : Array(Entry))
+      @page_width, @page_height = Config.paper_dimensions(resolve_paper_size)
+    end
+
+    # Priorité : `toc.page.paper_size` (override) sinon
+    # `config.paper_size` (défaut du document).
+    private def resolve_paper_size : String
+      page = @config.toc.try(&.page)
+      if page && !page.paper_size.empty?
+        page.paper_size
+      else
+        @config.paper_size
+      end
     end
 
     # Renvoie `{content_stream, annotations}`.
@@ -76,7 +86,7 @@ module CombinePDF
         io << "q\n"
 
         # Cursor vertical, descendant depuis le haut de la page.
-        y = PAGE_HEIGHT - MARGIN
+        y = @page_height - MARGIN
 
         # ─── Titre ─────────────────────────────────────────────
         title = page.title.empty? ? @config.title : page.title
@@ -111,7 +121,7 @@ module CombinePDF
           # Annotation Link sur toute la largeur de la ligne
           rect_x1 = MARGIN
           rect_y1 = line_baseline - 2.0
-          rect_x2 = PAGE_WIDTH - MARGIN
+          rect_x2 = @page_width - MARGIN
           rect_y2 = line_top + 2.0
           annotations << build_link_annotation(
             rect_x1, rect_y1, rect_x2, rect_y2,
@@ -130,7 +140,7 @@ module CombinePDF
     # Centre un texte horizontalement à la `y` baseline donnée.
     private def draw_centered(io : IO, text : String, y : Float64, size : Float64, font : String) : Nil
       width = approx_text_width(text, size, font)
-      x = (PAGE_WIDTH - width) / 2.0
+      x = (@page_width - width) / 2.0
       io << "BT\n"
       io << "0 0 0 rg\n"
       io << "/" << font_short(font) << " " << format_number(size) << " Tf\n"
@@ -154,7 +164,7 @@ module CombinePDF
       page_width = approx_text_width(page_text, size, "Helvetica")
 
       x_title = MARGIN
-      x_page = PAGE_WIDTH - MARGIN - page_width
+      x_page = @page_width - MARGIN - page_width
       dots_start = x_title + title_width + 4.0
       dots_end = x_page - 4.0
 

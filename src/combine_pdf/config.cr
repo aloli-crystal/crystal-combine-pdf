@@ -12,6 +12,16 @@ module CombinePDF
     property title : String
     # Auteur. Écrit dans le `/Info /Author`.
     property author : String
+    # Format de page utilisé pour les pages générées par le shard
+    # (TOC, pages blanches, futurs en-têtes/pieds-de-page) :
+    # `"a4"`, `"letter"`, `"legal"`, `"a3"`, `"a5"`, ou `"WxH"` en
+    # points (ex. `"595x842"`). Défaut `"a4"`.
+    #
+    # NOTE : ce format n'est PAS imposé aux PDF d'entrée. Un livret
+    # peut mélanger A4 + Letter + A3 librement — chaque page garde
+    # sa `MediaBox` d'origine. Seules les pages que ce shard
+    # GÉNÈRE utilisent `paper_size`.
+    property paper_size : String
     # `true` = livret recto-verso. Bascule la sémantique des positions
     # `outer-*` / `inner-*` (alternance par parité).
     property duplex : Bool
@@ -30,6 +40,7 @@ module CombinePDF
       @output : String = "output.pdf",
       @title : String = "",
       @author : String = "",
+      @paper_size : String = "a4",
       @duplex : Bool = false,
       @cover : Cover = Cover.new,
       @numbering : Numbering = Numbering.new,
@@ -37,6 +48,33 @@ module CombinePDF
       @watermark : Watermark? = nil,
       @files : Array(FileEntry) = [] of FileEntry,
     )
+    end
+
+    # Résout le `paper_size` (chaîne) en dimensions `{largeur, hauteur}`
+    # exprimées en points PDF (1 pt = 1/72 inch).
+    #
+    # Accepte les standards `"a4"`, `"letter"`, `"legal"`, `"a3"`,
+    # `"a5"` (insensible à la casse) et la forme libre `"WxH"`.
+    # Défaut A4 quand la chaîne n'est pas reconnue.
+    def self.paper_dimensions(name : String) : Tuple(Float64, Float64)
+      case name.downcase
+      when "a4"     then {595.0, 842.0}
+      when "letter" then {612.0, 792.0}
+      when "legal"  then {612.0, 1008.0}
+      when "a3"     then {842.0, 1191.0}
+      when "a5"     then {420.0, 595.0}
+      when "b5"     then {499.0, 709.0}
+      when "executive"
+        {522.0, 756.0}
+      else
+        # Forme libre "WxH" en points
+        if md = name.match(/^\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*$/i)
+          {md[1].to_f, md[2].to_f}
+        else
+          # Format inconnu → A4 par défaut, silencieusement
+          {595.0, 842.0}
+        end
+      end
     end
 
     # Une entrée du tableau `files:`.
@@ -231,6 +269,10 @@ module CombinePDF
         property title_font_size : Float64
         property subtitle_font_size : Float64
         property entry_font_size : Float64
+        # Override du format de page utilisé pour la TOC. Vide →
+        # hérite de `Config#paper_size`. Mêmes valeurs acceptées
+        # (`"a4"`, `"letter"`, `"legal"`, `"a3"`, `"a5"`, `"WxH"`).
+        property paper_size : String
 
         def initialize(
           @enabled : Bool = true,
@@ -241,6 +283,7 @@ module CombinePDF
           @title_font_size : Float64 = 24.0,
           @subtitle_font_size : Float64 = 16.0,
           @entry_font_size : Float64 = 11.0,
+          @paper_size : String = "",
         )
         end
       end

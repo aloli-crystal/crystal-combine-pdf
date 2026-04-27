@@ -206,6 +206,66 @@ describe "CLI déclarative" do
       pdf_content.should_not contain("(1/5)")
     end
 
+    it "respecte paper_size pour la page TOC (a4 par défaut)" do
+      dir = File.join(SpecHelper::TMP_DIR, "build-toc-a4")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "p1.pdf"), page_count: 2)
+
+      CombinePDF::ConfigInitializer.init(dir)
+      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      content = File.read(yml).sub("# toc:", "toc:")
+        .sub("#   bookmarks: true", "  bookmarks: true")
+        .sub("#   page:", "  page:")
+        .sub("#     enabled: true", "    enabled: true")
+      File.write(yml, content)
+
+      output_path = CombinePDF::BookletBuilder.from_dir(dir).build
+      # Page 0 (TOC) doit avoir 595×842 (A4)
+      width, height = SpecHelper.page_size(output_path, 0)
+      width.should eq(595.0)
+      height.should eq(842.0)
+    end
+
+    it "respecte paper_size: letter (US 612×792)" do
+      dir = File.join(SpecHelper::TMP_DIR, "build-toc-letter")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_letter(File.join(dir, "p1.pdf"))
+
+      CombinePDF::ConfigInitializer.init(dir)
+      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      content = File.read(yml).sub("paper_size: a4", "paper_size: letter")
+        .sub("# toc:", "toc:")
+        .sub("#   bookmarks: true", "  bookmarks: true")
+        .sub("#   page:", "  page:")
+        .sub("#     enabled: true", "    enabled: true")
+      File.write(yml, content)
+
+      output_path = CombinePDF::BookletBuilder.from_dir(dir).build
+      width, height = SpecHelper.page_size(output_path, 0)
+      width.should eq(612.0)
+      height.should eq(792.0)
+    end
+
+    it "respecte paper_size custom \"WxH\"" do
+      dir = File.join(SpecHelper::TMP_DIR, "build-toc-custom")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "p1.pdf"))
+
+      CombinePDF::ConfigInitializer.init(dir)
+      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      content = File.read(yml).sub("paper_size: a4", "paper_size: \"500x700\"")
+        .sub("# toc:", "toc:")
+        .sub("#   bookmarks: true", "  bookmarks: true")
+        .sub("#   page:", "  page:")
+        .sub("#     enabled: true", "    enabled: true")
+      File.write(yml, content)
+
+      output_path = CombinePDF::BookletBuilder.from_dir(dir).build
+      width, height = SpecHelper.page_size(output_path, 0)
+      width.should eq(500.0)
+      height.should eq(700.0)
+    end
+
     it "génère une page TOC en tête quand toc.page.enabled" do
       dir = File.join(SpecHelper::TMP_DIR, "build-toc")
       Dir.mkdir_p(dir)

@@ -22,6 +22,7 @@ module CombinePDF
         output: parse_str(data["output"]?, "output.pdf"),
         title: parse_str(data["title"]?, ""),
         author: parse_str(data["author"]?, ""),
+        paper_size: parse_str(data["paper_size"]?, "a4"),
         duplex: parse_bool(data["duplex"]?, false),
         cover: parse_cover(data["cover"]?),
         numbering: parse_numbering(data["numbering"]?),
@@ -159,6 +160,7 @@ module CombinePDF
         title_font_size: parse_float(node["title_font_size"]?, 24.0),
         subtitle_font_size: parse_float(node["subtitle_font_size"]?, 16.0),
         entry_font_size: parse_float(node["entry_font_size"]?, 11.0),
+        paper_size: parse_str(node["paper_size"]?, ""),
       )
     end
 

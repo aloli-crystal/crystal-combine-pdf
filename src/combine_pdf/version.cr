@@ -10,6 +10,14 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.5 = format de page configurable pour les pages générées
+  #            par le shard (TOC, pages blanches, futurs entêtes/
+  #            pieds-de-page) via le réglage `paper_size:` du YAML.
+  #            Standards reconnus : a4, letter, legal, a3, a5, b5,
+  #            executive ; format libre `WxH` en points. Override
+  #            par-section disponible via `toc.page.paper_size`.
+  #            Les PDF d'entrée gardent leur MediaBox d'origine.
+  #
   # 1.0.31.4 = page de titre + sommaire cliquable insérée en tête
   #            du livret. La page TOC est générée à la volée
   #            (TocBuilder + Merger#insert_toc_page) avec
@@ -34,5 +42,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.4"
+  VERSION = "1.0.31.5"
 end

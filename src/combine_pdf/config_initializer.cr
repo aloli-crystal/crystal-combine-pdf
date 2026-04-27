@@ -91,6 +91,13 @@ module CombinePDF
           title:  "#{folder_name}"
           author: "#{detect_author}"
 
+          # Format des pages générées par ce shard (TOC, pages blanches…).
+          # Les PDF d'entrée gardent leur format d'origine — ce réglage
+          # ne s'applique qu'aux pages que le shard fabrique lui-même.
+          # Valeurs : a4 (défaut), letter, legal, a3, a5, b5, executive
+          #           ou "WxH" en points (ex. "595x842")
+          paper_size: a4
+
           # true = recto-verso (les positions outer/inner alternent par
           #        parité de page)
           # false = recto seul
@@ -187,6 +194,7 @@ module CombinePDF
           #     title_font_size: 24
           #     subtitle_font_size: 16
           #     entry_font_size: 11
+          #     paper_size: ""         # vide = hérite de paper_size global
 
           # ─── Filigrane ────────────────────────────────────────────────
           # watermark:

@@ -3,6 +3,58 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.5 — 2026-04-27
+
+**Format de page configurable.** Le shard générait jusqu'ici toutes
+ses pages (TOC, pages blanches…) en A4 hardcodé. Cette version
+expose un réglage `paper_size:` au niveau du document et permet de
+choisir parmi les standards courants ou de fournir des dimensions
+libres.
+
+=== Configuration
+
+[source,yaml]
+----
+# Au niveau du document (s'applique à toutes les pages générées) :
+paper_size: a4    # a4 (défaut) | letter | legal | a3 | a5 | b5
+                  # | executive | "WxH" en points (ex. "595x842")
+
+# Override possible par section :
+toc:
+  page:
+    enabled: true
+    paper_size: ""  # vide = hérite du paper_size global
+----
+
+=== Implémentation
+
+* `Config#paper_size` (chaîne, défaut `"a4"`).
+* `Config.paper_dimensions(name)` : helper de classe qui renvoie
+  `{width, height}` en points pour les standards reconnus
+  (insensible à la casse) ou parse `"WxH"` libre.
+* `Config::Toc::Page#paper_size` : override optionnel (chaîne vide
+  = hérite du global).
+* `TocBuilder` : les anciennes constantes `PAGE_WIDTH` et
+  `PAGE_HEIGHT` deviennent des `getter` calculés au constructeur
+  via `Config.paper_dimensions(resolve_paper_size)`.
+* `Merger#insert_toc_page` accepte désormais `width: Float64` et
+  `height: Float64` (defaut A4).
+* Template `--init` documente le réglage avec la liste des valeurs
+  acceptées.
+
+=== Cas d'usage
+
+Le réglage **n'affecte pas les PDF d'entrée** — un livret peut
+mélanger A4, Letter et A3 librement, chaque page conservant sa
+`MediaBox` d'origine. Seules les pages **générées** par le shard
+suivent `paper_size`.
+
+=== Tests
+
+68 specs verts (65 + 3 nouveaux : TOC en A4 défaut, en Letter
+explicite, en custom `"500x700"` — chaque cas vérifie via
+`PDF::Reader` que la première page a les bonnes dimensions).
+
 == v1.0.31.4 — 2026-04-27
 
 **Page de titre + sommaire cliquable.** Active la TOC dans le YAML

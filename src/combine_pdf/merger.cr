@@ -99,8 +99,12 @@ module CombinePDF
     #                 références qu'ils contiennent sont déjà des
     #                 `::PDF::Objects::Reference` valides vers des
     #                 pages déjà mergées).
+    # `width`, `height` : dimensions du `/MediaBox` en points
+    #                     (defaut A4 595 × 842).
     def insert_toc_page(content : String,
-                        annotations : Array(::PDF::Objects::Dictionary)) : Nil
+                        annotations : Array(::PDF::Objects::Dictionary),
+                        width : Float64 = 595.0,
+                        height : Float64 = 842.0) : Nil
       # Allouer l'ID du content stream et l'ajouter au pool.
       content_id = allocate_id
       content_stream = ::PDF::Objects::Stream.new(::PDF::Objects::Dictionary.new, content.to_slice, true)
@@ -136,8 +140,8 @@ module CombinePDF
       mediabox = ::PDF::Objects::Array.new
       mediabox << ::PDF::Objects::Number.new(0_i64)
       mediabox << ::PDF::Objects::Number.new(0_i64)
-      mediabox << ::PDF::Objects::Number.new(595_i64) # A4 width
-      mediabox << ::PDF::Objects::Number.new(842_i64) # A4 height
+      mediabox << ::PDF::Objects::Number.new(width)
+      mediabox << ::PDF::Objects::Number.new(height)
       page_dict["MediaBox"] = mediabox
       page_dict["Resources"] = resources
       page_dict["Contents"] = ::PDF::Objects::Reference.new(content_id)

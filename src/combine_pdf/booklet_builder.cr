@@ -151,8 +151,9 @@ module CombinePDF
         cumulative += partition_pages
       end
 
-      content, annots = TocBuilder.new(@config, entries).build
-      merger.insert_toc_page(content, annots)
+      builder = TocBuilder.new(@config, entries)
+      content, annots = builder.build
+      merger.insert_toc_page(content, annots, builder.page_width, builder.page_height)
     end
 
     # Calcule le numéro de page affiché pour une page située à
