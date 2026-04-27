@@ -10,6 +10,9 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.10 = format par défaut « • %page% / %total% • » (puces
+  #             typographiques au lieu des tirets ASCII).
+  #
   # 1.0.31.9 = centrage horizontal correct + format personnalisable :
   #            * Nouveau module `WinAnsi` partagé entre TocBuilder et
   #              AdvancedNumberer, avec table de largeurs Helvetica
@@ -90,5 +93,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.9"
+  VERSION = "1.0.31.10"
 end

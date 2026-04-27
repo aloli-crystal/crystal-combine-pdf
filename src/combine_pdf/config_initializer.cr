@@ -169,10 +169,10 @@ module CombinePDF
           # Exemples de formats — combinez avec ce que vous voulez :
           #   "%page%/%total%"         → 6/12       (compact)
           #   "%page% / %total%"       → 6 / 12     (espacé)
-          #   "- %page% / %total% -"   → - 6 / 12 - (encadré tirets)
+          #   "• %page% / %total% •"   → • 6 / 12 • (puces, par défaut)
+          #   "- %page% / %total% -"   → - 6 / 12 - (tirets ASCII)
           #   "page %page% sur %total%" → page 6 sur 12
           #   "« %page%/%total% »"     → « 6/12 »   (guillemets français)
-          #   "• %page% / %total% •"   → • 6 / 12 • (puces)
           #   "† %page% †"             → † 6 †      (croix)
           #
           # Caractères supportés : ASCII + Latin-1 + symboles
@@ -184,13 +184,14 @@ module CombinePDF
           numbering:
             enabled: true            # désactive toute la numérotation si false
 
-            # Numéro global (ex: "- 6 / 12 -" sur la 6e page d'un
+            # Numéro global (ex: "• 6 / 12 •" sur la 6e page d'un
             # livret de 12 pages utiles). Le total est utile : un
             # musicien qui tient une page seule sait combien de pages
-            # restent.
+            # restent. Les puces typographiques (• U+2022) ressortent
+            # mieux que les tirets ASCII.
             global:
               enabled: true
-              format: "- %page% / %total% -"
+              format: "• %page% / %total% •"
               style: oval            # pastille gris pâle bordure fine
               position: bottom-right
               font_size: 13

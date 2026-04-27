@@ -170,12 +170,13 @@ describe "CLI déclarative" do
       File.exists?(output_path).should be_true
       SpecHelper.page_count(output_path).should eq(5)
 
-      # Les numéros sont bien présents — format global "- N / T -"
-      # qui inclut le total dans la pastille, partition "N / T" avec
-      # espaces autour du slash.
+      # Les numéros sont bien présents — format global par défaut
+      # "• N / T •" (la puce U+2022 = byte 0x95 en WinAnsi). On
+      # cherche le pattern entre les puces uniquement pour rester
+      # indépendant de l'encodage.
       content = File.read(output_path)
-      content.should contain("(- 1 / 5 -)")
-      content.should contain("(- 5 / 5 -)")
+      content.should contain(" 1 / 5 ")
+      content.should contain(" 5 / 5 ")
       # Marques de partition : p1 = 2 pages, p2 = 3 pages.
       content.should contain("(1 / 2)")
       content.should contain("(2 / 2)")
@@ -200,11 +201,11 @@ describe "CLI déclarative" do
       pdf_content = File.read(output_path)
       # 5 pages totales, cover.mode=recto = 1 page avant + 1 page
       # arrière. Avec include_in_numbering: false, le contenu fait
-      # 3 pages, numérotées avec le format par défaut "- N / T -".
-      pdf_content.should contain("(- 1 / 3 -)")
-      pdf_content.should contain("(- 3 / 3 -)")
+      # 3 pages, numérotées avec le format par défaut "• N / T •".
+      pdf_content.should contain(" 1 / 3 ")
+      pdf_content.should contain(" 3 / 3 ")
       # Le total ne doit pas afficher 5 (les couvertures sont sautées).
-      pdf_content.should_not contain("(- 1 / 5 -)")
+      pdf_content.should_not contain(" 1 / 5 ")
     end
 
     it "respecte paper_size pour la page TOC (a4 par défaut)" do

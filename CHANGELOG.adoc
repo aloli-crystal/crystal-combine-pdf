@@ -3,6 +3,13 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.10 — 2026-04-27
+
+**Format par défaut : `• %page% / %total% •`** (puces typographiques
+U+2022 au lieu des tirets ASCII). Aspect plus élégant et reconnaissable
+dans la pastille ovale grise. Les tirets ASCII restent disponibles
+en option.
+
 == v1.0.31.9 — 2026-04-27
 
 **Centrage horizontal correct des pastilles + format de

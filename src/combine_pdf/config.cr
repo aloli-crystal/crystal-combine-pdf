@@ -246,11 +246,14 @@ module CombinePDF
         # Défauts pour la couche globale (numéro de page du livret).
         # Style "oval" pour avoir une pastille discrète qui marque
         # quand même l'œil (cf. document de référence). Format
-        # `- N / T -` qui inclut le total : utile pour savoir où on
-        # en est dans le livret quand on tient juste une page.
+        # `• N / T •` qui inclut le total : utile pour savoir où on
+        # en est dans le livret quand on tient juste une page. Les
+        # puces typographiques WinAnsi (•, U+2022) sont plus
+        # élégantes que les tirets ASCII et bien rendues par toutes
+        # les Helvetica.
         def self.global_default : Layer
           new(
-            format: "- %page% / %total% -",
+            format: "\u{2022} %page% / %total% \u{2022}",
             style: "oval",
             position: "bottom-right",
             font_size: 13.0,
