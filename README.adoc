@@ -131,7 +131,11 @@ geometry read from the actual `MediaBox` of every page.
 * **Standalone desktop app** — cross-platform GUI for the same
   workflow as the CLI, no terminal needed. To investigate:
   native webview (`crystal-webview` lib or GTK WebKit), or a
-  ncurses/termbox TUI to keep the single-binary spirit.
+  ncurses/termbox TUI to keep the single-binary spirit. Starting
+  point worth studying:
+  https://github.com/serge-hulne/Crystal-App-template-for-Windows[serge-hulne/Crystal-App-template-for-Windows]
+  — a Crystal application template targeting Windows, useful for
+  packaging the binary into a distributable desktop app.
 
 == Installation
 

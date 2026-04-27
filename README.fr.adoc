@@ -134,7 +134,10 @@ géométrie réelle de chaque `MediaBox`.
   même workflow que la CLI, sans avoir à ouvrir un terminal.
   Pistes à étudier : webview native (lib `crystal-webview` ou GTK
   WebKit), ou TUI ncurses/termbox pour rester dans l'esprit
-  binaire-unique.
+  binaire-unique. Point de départ à étudier :
+  https://github.com/serge-hulne/Crystal-App-template-for-Windows[serge-hulne/Crystal-App-template-for-Windows]
+  — un template d'application Crystal pour Windows, utile pour
+  empaqueter le binaire en application desktop distribuable.
 
 == Installation
 
