@@ -194,18 +194,31 @@ module CombinePDF
         # plus an opaque byte payload (which doesn't). Remap the
         # dict, keep the data verbatim.
         #
-        # IMPORTANT : the Reader stores DECODED bytes in
-        # `Stream#data` but leaves the original `/Filter` entry in
-        # the dictionary. If we just copy them as-is, the next
-        # parser will try to Flate-decode the already-clear bytes
-        # and crash with "Invalid header". Strip the filter so the
-        # output stream is read back as plain text. We also drop
-        # /Length, which the writer rewrites from `data.size`.
+        # `Stream#decoded` (crystal-pdf v0.3.6+) tells us if the
+        # payload is plain text or still encoded :
+        #
+        # * `decoded == true` — Reader inverted all filters on the
+        #   way in. The bytes in `obj.data` are clear ; the writer
+        #   will not re-encode them. We MUST drop `/Filter` and
+        #   `/DecodeParms` so the next parser doesn't try to
+        #   Flate-decode plain text.
+        #
+        # * `decoded == false` — Reader hit a filter it cannot
+        #   invert (CCITTFaxDecode for fax-style B&W scans,
+        #   DCTDecode for JPEGs, JBIG2Decode, JPXDecode, …). The
+        #   bytes in `obj.data` are STILL ENCODED. We MUST preserve
+        #   `/Filter` and `/DecodeParms` so the next parser knows
+        #   how to read them — otherwise the image silently
+        #   corrupts to grey blobs (or the parser crashes).
+        #
+        # `/Length` is rewritten from `data.size` either way.
         new_dict = remap(obj.dictionary, id_map).as(::PDF::Objects::Dictionary)
-        new_dict.delete("Filter")
-        new_dict.delete("DecodeParms")
         new_dict.delete("Length")
-        ::PDF::Objects::Stream.new(new_dict, obj.data)
+        if obj.decoded
+          new_dict.delete("Filter")
+          new_dict.delete("DecodeParms")
+        end
+        ::PDF::Objects::Stream.new(new_dict, obj.data, obj.decoded)
       else
         # Number, Str, Name, Boolean, Null — no nested references.
         obj

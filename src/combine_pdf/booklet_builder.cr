@@ -38,9 +38,12 @@ module CombinePDF
       output_path = File.join(@base_dir, @config.output)
 
       # Validation préalable : tente d'ouvrir chaque fichier pour
-      # repérer ceux que `crystal-pdf` ne peut pas parser (PDFs avec
-      # xref streams, filtres CCITTFaxDecode/DCTDecode, etc.).
-      # Mieux vaut un message clair maintenant qu'un crash plus tard.
+      # repérer les rares cas où `crystal-pdf` n'arrive pas à
+      # parser (PDF malformé, encryption non supportée, etc.).
+      # Depuis crystal-pdf v0.3.6 les xref streams et les filtres
+      # CCITTFaxDecode/DCTDecode/JBIG2Decode sont gérés ;
+      # cette boucle attrape les cas restants et donne un message
+      # explicite au lieu d'un crash plus loin dans la pipeline.
       bad_files = [] of Tuple(String, String)
       active.each do |entry|
         full = File.join(@base_dir, entry.path)
@@ -52,13 +55,11 @@ module CombinePDF
       end
       unless bad_files.empty?
         msg = String.build do |s|
-          s << "Fichiers non lisibles par crystal-pdf :\n"
+          s << "Fichiers non lisibles :\n"
           bad_files.each do |path, err|
             s << "  - " << path << "\n    → " << err << "\n"
           end
-          s << "\nContournements possibles :\n"
-          s << "  • Reconvertir avec qpdf : `qpdf --object-streams=disable in.pdf out.pdf`\n"
-          s << "  • Exclure dans le YAML en préfixant par `# - `\n"
+          s << "\nVous pouvez exclure une entrée dans le YAML en la préfixant par `# - `.\n"
         end
         raise msg
       end

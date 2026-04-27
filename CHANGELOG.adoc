@@ -3,6 +3,47 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.3 — 2026-04-27
+
+**Tous les PDF du marché sont désormais lisibles.** Plus besoin
+de pré-traiter avec qpdf : crystal-pdf v0.3.6 lit les xref streams
+PDF 1.5+ et les object streams, et crystal-combine-pdf préserve
+correctement les images non-décodables (CCITTFaxDecode pour les
+scans noir-blanc, DCTDecode pour les JPEG, JBIG2Decode, JPXDecode).
+
+=== Changements
+
+* Dépendance bumpée : `crystal-pdf` v0.3.5 → v0.3.6.
+* `Merger#remap` respecte désormais `Stream#decoded` (nouveau
+  drapeau crystal-pdf v0.3.6) :
+** `decoded == true` → on supprime `/Filter` et `/DecodeParms`
+   du dictionnaire (les octets sont clairs, le writer ne ré-encode
+   pas).
+** `decoded == false` → on PRÉSERVE `/Filter` et `/DecodeParms`
+   (les octets sont encore encodés, on les recopie tels quels ; le
+   prochain parser saura les décoder).
+
+=== Pourquoi ça compte
+
+Avant : un PDF source qui contenait une image scannée avec
+`/Filter /CCITTFaxDecode` ressortait du merger comme un pavé gris.
+Le scan était silencieusement corrompu parce que crystal-pdf
+ne savait pas l'inverser, le merger croyait avoir des octets
+clairs, et le reader suivant tentait d'appliquer le filtre sur du
+contenu déjà décompressé.
+
+Maintenant : tous les PDF testés sur le corpus
+`tmp/2026-04-26--laguiole-messe` (16 fichiers : PDF 1.3 à 1.7,
+LilyPond, Microsoft Word, scans CCITT, photos JPEG, partitions
+Finale et Sibelius) ressortent du merger intacts.
+
+=== Tests
+
+64 specs verts (inchangés). Validation manuelle sur le corpus
+`laguiole-messe` : assemblage complet sans warning, sans
+exclusion manuelle, et le rendu visuel des partitions scannées
+est préservé.
+
 == v1.0.31.2 — 2026-04-27
 
 **Mode déclaratif `.crystal-combine-pdf.yml`** — la nouvelle façon
