@@ -21,6 +21,9 @@ mode_refresh = false
 recursive = false
 target_dir = "."
 
+# ─── Drapeaux du mode `init` (personnalisation du YAML généré) ────
+init_options = CombinePDF::ConfigInitializer::InitOptions.new
+
 # ─── Drapeaux des sous-commandes historiques ──────────────────────
 output_path = ""
 partitions : Array(Int32)? = nil
@@ -68,6 +71,48 @@ parser = OptionParser.new do |p|
   p.on("-R", "--refresh", "Rafraîchit la liste `files:` du YAML existant") { mode_refresh = true }
   p.on("-r", "--recursive", "Mode récursif (avec --init ou --refresh)") { recursive = true }
   p.on("-d DIR", "--dir=DIR", "Dossier cible (défaut : .)") { |v| target_dir = v }
+
+  p.separator ""
+  p.separator "Options pour `init` (personnalisent le YAML généré) :"
+
+  # Réglages directs (overrides des valeurs déduites)
+  p.on("--paper-size=SIZE", "a4 (défaut) | letter | legal | a3 | a5 | b5 | executive | WxH") do |v|
+    init_options.paper_size = v
+  end
+  p.on("--duplex", "Génère duplex: true (recto-verso)") { init_options.duplex = true }
+  p.on("--title=TEXT", "Override le titre (défaut : nom du dossier)") { |v| init_options.title = v }
+  p.on("--author=TEXT", "Override l'auteur (défaut : git config user.name)") { |v| init_options.author = v }
+  p.on("--init-output=FILE", "Override le nom du PDF de sortie") { |v| init_options.output = v }
+
+  # Numérotation
+  p.on("--no-numbering", "Désactive toute la numérotation (numbering.enabled: false)") do
+    init_options.numbering_enabled = false
+  end
+  p.on("--init-format=FMT", "Format global (défaut : '• %page% / %total% •')") do |v|
+    init_options.global_format = v
+  end
+
+  # Couverture
+  p.on("--cover=MODE", "Mode couverture : none (défaut) | recto | recto-verso") do |v|
+    init_options.cover_mode = v
+  end
+
+  # Sections optionnelles
+  p.on("--toc", "Active la page de titre + sommaire cliquable") { init_options.toc_state = :enabled }
+  p.on("--skip-toc", "Omet entièrement la section TOC du YAML") { init_options.toc_state = :omitted }
+  p.on("--watermark=TEXT", "Active la section filigrane avec ce texte") do |v|
+    init_options.watermark_state = :enabled
+    init_options.watermark_text = v
+  end
+  p.on("--skip-watermark", "Omet entièrement la section filigrane du YAML") do
+    init_options.watermark_state = :omitted
+  end
+  p.on("--header", "Active le header de partition (titre du fichier en haut)") do
+    init_options.header_state = :enabled
+  end
+  p.on("--skip-header", "Omet entièrement la section header du YAML") do
+    init_options.header_state = :omitted
+  end
 
   p.separator ""
   p.separator "Options des sous-commandes historiques :"
@@ -139,7 +184,7 @@ end
 # Mode --init
 if mode_init
   begin
-    target = CombinePDF::ConfigInitializer.init(target_dir, recursive)
+    target = CombinePDF::ConfigInitializer.init(target_dir, recursive, init_options)
     puts "✓ Créé : #{target}"
     pdfs = CombinePDF::ConfigInitializer.scan_pdfs(target_dir, recursive)
     puts "  #{pdfs.size} fichier(s) PDF listé(s)#{recursive ? " (récursif)" : ""}"

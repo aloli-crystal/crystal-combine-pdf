@@ -4,6 +4,59 @@ require "./spec_helper"
 # défaut. Les PDF sont générés à la volée avec `crystal-pdf` pour
 # rester indépendants des partitions réelles de l'utilisateur.
 describe "CLI déclarative" do
+  describe "ConfigInitializer.init avec InitOptions" do
+    it "respecte --skip-watermark (omet la section)" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-skip-wm")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer::InitOptions.new
+      opts.watermark_state = :omitted
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should_not contain("watermark:")
+      content.should_not contain("# watermark:")
+    end
+
+    it "respecte --watermark TEXT (active la section)" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-with-wm")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer::InitOptions.new
+      opts.watermark_state = :enabled
+      opts.watermark_text = "CONFIDENTIEL"
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("\nwatermark:\n")
+      content.should contain("text: \"CONFIDENTIEL\"")
+    end
+
+    it "respecte --toc + --skip-toc + override paper_size + duplex" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-toc-pap")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer::InitOptions.new
+      opts.toc_state = :enabled
+      opts.paper_size = "letter"
+      opts.duplex = true
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("\ntoc:\n")
+      content.should contain("paper_size: letter")
+      content.should contain("duplex: true")
+    end
+
+    it "respecte --no-numbering" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-no-num")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer::InitOptions.new
+      opts.numbering_enabled = false
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("enabled: false")
+    end
+  end
+
   describe "ConfigInitializer.init" do
     it "génère un YAML avec la liste des PDF du dossier" do
       dir = File.join(SpecHelper::TMP_DIR, "init-test")

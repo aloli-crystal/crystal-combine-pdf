@@ -10,6 +10,16 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.12 = options en ligne de commande pour `init` :
+  #             personnaliser le YAML généré sans avoir à l'éditer
+  #             ensuite. Drapeaux : --paper-size, --duplex, --title,
+  #             --author, --init-output, --init-format,
+  #             --no-numbering, --cover, --toc, --skip-toc,
+  #             --watermark, --skip-watermark, --header,
+  #             --skip-header. Sections optionnelles ont 3 états :
+  #             :default (commentée), :enabled (active), :omitted
+  #             (absente).
+  #
   # 1.0.31.11 = support des dingbats Unicode (★ ♥ ✦ ✓ ✗ ❖ ➤ ✿…)
   #             via ZapfDingbats (Type1 standard PDF, garanti dans
   #             tous les viewers, pas d'embedding nécessaire). Le
@@ -101,5 +111,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.11"
+  VERSION = "1.0.31.12"
 end

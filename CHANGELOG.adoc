@@ -3,6 +3,98 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.12 — 2026-04-28
+
+**Drapeaux CLI pour `init`.** Le YAML généré peut désormais être
+personnalisé directement à la création, sans passer par une
+édition manuelle. Les sections optionnelles peuvent être :
+* gardées en commentaires (état historique, défaut)
+* activées d'emblée
+* complètement omises pour un fichier compact
+
+=== Drapeaux
+
+[cols="1,3"]
+|===
+| Drapeau | Effet
+
+| `--paper-size SIZE`
+| `paper_size:` (a4 \| letter \| legal \| a3 \| a5 \| b5 \| executive \| WxH)
+
+| `--duplex`
+| `duplex: true` (recto-verso)
+
+| `--title TEXT`
+| Override le titre (défaut : nom du dossier)
+
+| `--author TEXT`
+| Override l'auteur (défaut : `git config user.name`)
+
+| `--init-output FILE`
+| Override le nom du PDF de sortie
+
+| `--init-format FMT`
+| Format global de numérotation
+  (défaut : `"• %page% / %total% •"`)
+
+| `--no-numbering`
+| `numbering.enabled: false`
+
+| `--cover MODE`
+| `cover.mode:` (none \| recto \| recto-verso)
+
+| `--toc`
+| Active la page de titre + sommaire cliquable
+
+| `--skip-toc`
+| Omet entièrement la section TOC du YAML
+
+| `--watermark TEXT`
+| Active le filigrane avec ce texte
+
+| `--skip-watermark`
+| Omet entièrement la section filigrane
+
+| `--header`
+| Active le header de partition (titre du fichier en haut)
+
+| `--skip-header`
+| Omet entièrement la section header
+|===
+
+=== Exemples
+
+[source,shell]
+----
+# Livret recto-verso US Letter, sans filigrane, avec TOC
+crystal-combine-pdf init --duplex --paper-size letter \
+                         --skip-watermark --toc
+
+# Numérotation avec étoiles, titre custom, sans header
+crystal-combine-pdf init --init-format "★ %page% / %total% ★" \
+                         --title "Mes Partitions" --skip-header
+
+# Filigrane "BROUILLON" sur un livret minimaliste
+crystal-combine-pdf init --watermark BROUILLON --no-numbering
+----
+
+=== Implémentation
+
+* Nouvelle struct `CombinePDF::ConfigInitializer::InitOptions` —
+  configuration complète passée à `init`.
+* `build_yaml` refactorisé en sections (`build_section_paper_size`,
+  `_duplex`, `_cover`, `_numbering`, `_header`, `_toc`,
+  `_watermark`). Chaque section optionnelle a trois branches selon
+  son `*_state` (`:default` \| `:enabled` \| `:omitted`).
+* CLI : 14 nouveaux drapeaux dans `cli.cr`, regroupés dans une
+  section dédiée de l'aide.
+
+=== Tests
+
+73 specs verts (69 + 4 nouveaux : `--skip-watermark`,
+`--watermark TEXT`, `--toc + --paper-size + --duplex`,
+`--no-numbering`).
+
 == v1.0.31.11 — 2026-04-27
 
 **Dingbats Unicode dans les formats de numérotation.** Étoiles,
