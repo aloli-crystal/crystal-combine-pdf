@@ -10,6 +10,11 @@ module CombinePDF
   #            `remove`, `pages`, `page_count`, `new_page`, `title=`,
   #            `author=`, `number_pages`, `save`, `to_pdf`).
   #
+  # 1.0.31.13 = nettoyage CLI : retrait des drapeaux qui doublaient
+  #             les sous-commandes (-i/--init, -R/--refresh). Une
+  #             seule façon de faire désormais : la sous-commande
+  #             positionnelle (`init`, `refresh`, `build`).
+  #
   # 1.0.31.12 = options en ligne de commande pour `init` :
   #             personnaliser le YAML généré sans avoir à l'éditer
   #             ensuite. Drapeaux : --paper-size, --duplex, --title,
@@ -111,5 +116,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.12"
+  VERSION = "1.0.31.13"
 end

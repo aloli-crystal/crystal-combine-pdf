@@ -41,13 +41,12 @@ parser = OptionParser.new do |p|
             crystal-combine-pdf [options] FICHIERS...
 
     Mode déclaratif (recommandé pour les livrets) :
-      crystal-combine-pdf init [-r, --recursive]
-        Synonyme : --init / -i
+      crystal-combine-pdf init [options]
         Crée un fichier .crystal-combine-pdf.yml dans le dossier
-        courant, peuplé avec la liste des PDF présents.
+        courant, peuplé avec la liste des PDF présents. Voir les
+        options ci-dessous pour personnaliser le YAML généré.
 
-      crystal-combine-pdf refresh [-r, --recursive]
-        Synonyme : --refresh / -R
+      crystal-combine-pdf refresh [-r]
         Met à jour la liste `files:` du YAML : ajoute en fin les
         nouveaux PDF, commente les entrées dont le fichier a
         disparu. Préserve commentaires, ordre et titres existants.
@@ -66,10 +65,8 @@ parser = OptionParser.new do |p|
     Options :
     BANNER
 
-  # Mode déclaratif
-  p.on("-i", "--init", "Initialise un .crystal-combine-pdf.yml") { mode_init = true }
-  p.on("-R", "--refresh", "Rafraîchit la liste `files:` du YAML existant") { mode_refresh = true }
-  p.on("-r", "--recursive", "Mode récursif (avec --init ou --refresh)") { recursive = true }
+  # Options communes init / refresh
+  p.on("-r", "--recursive", "Mode récursif (avec init ou refresh)") { recursive = true }
   p.on("-d DIR", "--dir=DIR", "Dossier cible (défaut : .)") { |v| target_dir = v }
 
   p.separator ""

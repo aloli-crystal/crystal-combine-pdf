@@ -3,6 +3,34 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.13 — 2026-04-28
+
+**Nettoyage CLI : retrait des drapeaux qui doublaient les
+sous-commandes.**
+
+Avant : on pouvait écrire indifféremment `crystal-combine-pdf init`
+(sous-commande) OU `crystal-combine-pdf -i` / `--init` (drapeau).
+Idem pour `refresh` / `-R` / `--refresh`. Deux façons de faire
+pour la même chose — source de confusion dans l'aide et dans les
+scripts.
+
+Maintenant : **une seule façon**, la sous-commande positionnelle.
+
+[cols="1,1"]
+|===
+| Avant | Maintenant
+
+| `crystal-combine-pdf -i`        | `crystal-combine-pdf init`
+| `crystal-combine-pdf --init`    | `crystal-combine-pdf init`
+| `crystal-combine-pdf -R`        | `crystal-combine-pdf refresh`
+| `crystal-combine-pdf --refresh` | `crystal-combine-pdf refresh`
+|===
+
+Conservés (ce sont de vraies options, pas des doublons) :
+
+* `-r` / `--recursive` — scan récursif
+* `-d` / `--dir DIR` — dossier cible
+
 == v1.0.31.12 — 2026-04-28
 
 **Drapeaux CLI pour `init`.** Le YAML généré peut désormais être
