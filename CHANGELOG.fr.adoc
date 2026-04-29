@@ -3,6 +3,28 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.19 — 2026-04-29
+
+=== Corrigé
+
+* **Numérotation rendue à l'envers ou invisible sur certaines pages.**
+  Quand un PDF source ouvre son content stream avec une CTM non
+  triviale (par ex. `0.75 0 0 -0.75 0 841.92 cm` pour un Y-flip +
+  scale 0.75×, émis par des exporters qui utilisent l'origine
+  top-left) à profondeur 0 de la pile graphics-state, cette
+  transformation persiste dans notre overlay ajouté par-dessus et
+  notre texte sort flippé et redimensionné. Les pages 6-7 (gloria,
+  scale 0.24) devenaient illisibles (~6,5 pt) ; les pages 1-2
+  (feuille-de-messe, scale 0.75) affichaient les numéros à l'envers.
+* `AdvancedNumberer` parcourt désormais les content streams existants
+  de chaque page, calcule la CTM cumulée à profondeur 0, et préfixe
+  notre overlay avec son inverse (`q\\n<inverse> cm\\n... \\nQ`).
+  Quand la CTM cumulée est l'identité, aucun `cm` n'est émis (no-op
+  pour les PDFs bien formés).
+* Implémentation : tokeniseur PDF minimaliste qui gère les chaînes
+  `()`, les arrays `[]`, les dicts `<<>>`, les commentaires `%` et
+  suit la profondeur q/Q.
+
 == v1.0.31.18 — 2026-04-29
 
 === Corrigé

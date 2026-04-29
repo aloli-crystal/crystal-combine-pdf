@@ -125,7 +125,13 @@ module CombinePDF
         end
         ensure_fonts_in_page_resources(reader, page, needed_fonts, needs_zapf)
 
-        stream = build_stream(layers)
+        # Calcule l'inverse de la CTM cumulée des content streams
+        # existants — neutralise un Y-flip ou un scale hérité (par ex.
+        # `0.75 0 0 -0.75 0 841.92 cm` au début du stream amont) qui
+        # ferait sortir notre overlay à l'envers et à la mauvaise taille.
+        cm_inv = cm_inverse_for_prior_streams(page.content_streams)
+
+        stream = build_stream(layers, cm_inv)
         page.add_content_stream(stream) unless stream.empty?
       end
 
@@ -286,15 +292,233 @@ module CombinePDF
 
     # Génère le content stream PDF pour toutes les couches d'une page.
     # Style "badge" = dessine un cadre arrondi gris pâle derrière.
-    private def build_stream(layers : Array(Tuple(Float64, Float64, String, Config::Numbering::Layer, String))) : String
+    #
+    # `cm_inverse` : si fourni, appliquée juste après le `q` initial pour
+    # neutraliser une CTM héritée de streams précédents (cas typique :
+    # un PDF source ouvre son stream avec `0.75 0 0 -0.75 0 841.92 cm`
+    # qui flippe Y et scale ; sans neutralisation, notre overlay sortirait
+    # à l'envers et redimensionné).
+    private def build_stream(
+      layers : Array(Tuple(Float64, Float64, String, Config::Numbering::Layer, String)),
+      cm_inverse : Tuple(Float64, Float64, Float64, Float64, Float64, Float64)? = nil,
+    ) : String
       String.build do |io|
         io << "q\n"
+        if cm_inverse
+          a, b, c, d, e, f = cm_inverse
+          io << format_cm(a) << ' ' << format_cm(b) << ' '
+          io << format_cm(c) << ' ' << format_cm(d) << ' '
+          io << format_cm(e) << ' ' << format_cm(f) << " cm\n"
+        end
         layers.each do |entry|
           x, y, text, layer, _kind = entry
           render_layer(io, x, y, text, layer)
         end
         io << "Q\n"
       end
+    end
+
+    # Formate un nombre PDF (pas de notation scientifique, jusqu'à 6
+    # décimales). Trim les zéros trailing pour la propreté.
+    private def format_cm(n : Float64) : String
+      s = "%.6f" % n
+      s = s.rstrip('0')
+      s = s.rstrip('.')
+      s.empty? || s == "-" ? "0" : s
+    end
+
+    # Calcule la CTM cumulée (au niveau de profondeur 0 du graphics
+    # state stack) des content streams existants d'une page, puis
+    # retourne son inverse. Si la CTM cumulée est l'identité (cas
+    # courant des PDF bien formés), retourne `nil` — pas besoin de
+    # neutralisation.
+    #
+    # Algorithme : tokenise chaque stream, suit la profondeur q/Q, et
+    # multiplie les `cm` rencontrés à profondeur 0. Les `cm` à
+    # profondeur > 0 sont annulés par leur `Q`.
+    private def cm_inverse_for_prior_streams(streams : Array(Bytes)) : Tuple(Float64, Float64, Float64, Float64, Float64, Float64)?
+      # Identité comme CTM de départ
+      a, b, c, d, e, f = 1.0, 0.0, 0.0, 1.0, 0.0, 0.0
+
+      streams.each do |bytes|
+        a, b, c, d, e, f = accumulate_cm(String.new(bytes), a, b, c, d, e, f)
+      end
+
+      # Si CTM ≈ identité, pas besoin d'inverse
+      return nil if (a - 1.0).abs < 1e-9 && b.abs < 1e-9 &&
+                    c.abs < 1e-9 && (d - 1.0).abs < 1e-9 &&
+                    e.abs < 1e-9 && f.abs < 1e-9
+
+      # Inverse de [a b c d e f]
+      det = a * d - b * c
+      return nil if det.abs < 1e-12 # non-inversible, on se rabat sur identité
+
+      a_i = d / det
+      b_i = -b / det
+      c_i = -c / det
+      d_i = a / det
+      e_i = (c * f - d * e) / det
+      f_i = (b * e - a * f) / det
+      {a_i, b_i, c_i, d_i, e_i, f_i}
+    end
+
+    # Walks `stream` token by token, tracking q/Q depth. When a `cm`
+    # is encountered at depth 0, multiplies the current matrix by the
+    # 6 numeric arguments preceding it.
+    private def accumulate_cm(
+      stream : String,
+      a : Float64, b : Float64, c : Float64, d : Float64, e : Float64, f : Float64,
+    ) : Tuple(Float64, Float64, Float64, Float64, Float64, Float64)
+      depth = 0
+      pending = [] of Float64
+
+      tokenize_pdf_ops(stream) do |tok|
+        case tok
+        when "q"
+          depth += 1
+          pending.clear
+        when "Q"
+          depth -= 1 if depth > 0
+          pending.clear
+        when "cm"
+          if depth == 0 && pending.size >= 6
+            args = pending.last(6)
+            a2, b2, c2, d2, e2, f2 = args
+            # PDF concat : new_CTM = applied × current_CTM
+            # i.e. our (a,b,c,d,e,f) is updated by left-multiplication
+            # of (a2,b2,c2,d2,e2,f2). Equivalent matrix form :
+            #   [a' b' 0]   [a2 b2 0]   [a b 0]
+            #   [c' d' 0] = [c2 d2 0] × [c d 0]
+            #   [e' f' 1]   [e2 f2 1]   [e f 1]
+            new_a = a2 * a + b2 * c
+            new_b = a2 * b + b2 * d
+            new_c = c2 * a + d2 * c
+            new_d = c2 * b + d2 * d
+            new_e = e2 * a + f2 * c + e
+            new_f = e2 * b + f2 * d + f
+            a, b, c, d, e, f = new_a, new_b, new_c, new_d, new_e, new_f
+          end
+          pending.clear
+        else
+          # Numéro : on accumule. Sinon c'est un autre opérateur, on
+          # purge la pile d'arguments en attente.
+          if numeric_token?(tok)
+            pending << tok.to_f64
+          else
+            pending.clear
+          end
+        end
+      end
+
+      {a, b, c, d, e, f}
+    end
+
+    # Tokeniseur PDF minimaliste : split sur whitespace en SAUTANT le
+    # contenu des chaînes `(...)` (qui peuvent contenir `q`, `cm`, etc.
+    # comme caractères) et des arrays `[...]`. Suffisant pour suivre
+    # les opérateurs cm/q/Q et leurs arguments numériques.
+    private def tokenize_pdf_ops(stream : String, &) : Nil
+      i = 0
+      len = stream.bytesize
+      tok_start = -1
+
+      while i < len
+        ch = stream.byte_at(i)
+        case ch
+        when '('.ord
+          # Saute le contenu de la chaîne PDF (...) en gérant les
+          # parenthèses imbriquées et les échappements \( \).
+          if tok_start >= 0
+            yield stream.byte_slice(tok_start, i - tok_start)
+            tok_start = -1
+          end
+          paren = 1
+          i += 1
+          while i < len && paren > 0
+            c = stream.byte_at(i)
+            if c == '\\'.ord
+              i += 2
+              next
+            elsif c == '('.ord
+              paren += 1
+            elsif c == ')'.ord
+              paren -= 1
+            end
+            i += 1
+          end
+        when '['.ord
+          # Saute jusqu'au ']' correspondant (les arrays peuvent
+          # contenir des nombres mais pas d'opérateurs en PDF).
+          if tok_start >= 0
+            yield stream.byte_slice(tok_start, i - tok_start)
+            tok_start = -1
+          end
+          bracket = 1
+          i += 1
+          while i < len && bracket > 0
+            c = stream.byte_at(i)
+            bracket += 1 if c == '['.ord
+            bracket -= 1 if c == ']'.ord
+            i += 1
+          end
+        when '<'.ord
+          # Saute les chaînes hex <...> et les dictionnaires <<>>
+          if tok_start >= 0
+            yield stream.byte_slice(tok_start, i - tok_start)
+            tok_start = -1
+          end
+          if i + 1 < len && stream.byte_at(i + 1) == '<'.ord
+            angle = 1
+            i += 2
+            while i < len && angle > 0
+              c = stream.byte_at(i)
+              if c == '<'.ord && i + 1 < len && stream.byte_at(i + 1) == '<'.ord
+                angle += 1
+                i += 2
+                next
+              end
+              if c == '>'.ord && i + 1 < len && stream.byte_at(i + 1) == '>'.ord
+                angle -= 1
+                i += 2
+                next
+              end
+              i += 1
+            end
+          else
+            i += 1
+            while i < len && stream.byte_at(i) != '>'.ord
+              i += 1
+            end
+            i += 1
+          end
+        when '%'.ord
+          # Commentaire — saute jusqu'à fin de ligne
+          if tok_start >= 0
+            yield stream.byte_slice(tok_start, i - tok_start)
+            tok_start = -1
+          end
+          while i < len && stream.byte_at(i) != '\n'.ord && stream.byte_at(i) != '\r'.ord
+            i += 1
+          end
+        when ' '.ord, '\t'.ord, '\n'.ord, '\r'.ord, '\f'.ord
+          if tok_start >= 0
+            yield stream.byte_slice(tok_start, i - tok_start)
+            tok_start = -1
+          end
+          i += 1
+        else
+          tok_start = i if tok_start < 0
+          i += 1
+        end
+      end
+      if tok_start >= 0
+        yield stream.byte_slice(tok_start, len - tok_start)
+      end
+    end
+
+    private def numeric_token?(tok : String) : Bool
+      return false if tok.empty?
+      tok.to_f64?.try(&.is_a?(Float64)) || false
     end
 
     private def render_layer(io : IO, x : Float64, y : Float64, text : String, layer : Config::Numbering::Layer) : Nil

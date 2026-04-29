@@ -3,6 +3,27 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.19 — 2026-04-29
+
+=== Fixed
+
+* **Numbering rendered upside-down or invisible on some pages.**
+  When a source PDF opens its content stream with a non-trivial CTM
+  (e.g. `0.75 0 0 -0.75 0 841.92 cm` for a Y-flip + 0.75× scale,
+  emitted by exporters that use top-left origin) at depth 0 of the
+  graphics-state stack, that transformation persists into our
+  appended overlay stream and our text comes out flipped and resized.
+  Pages 6-7 (gloria, scale 0.24) became unreadable (~6.5 pt text);
+  pages 1-2 (feuille-de-messe, scale 0.75) showed numbers
+  upside-down.
+* `AdvancedNumberer` now walks the prior content streams of each
+  page, computes the cumulative depth-0 CTM, and prepends our
+  overlay with its inverse (`q\\n<inverse> cm\\n... \\nQ`). When the
+  cumulative is identity, no `cm` is emitted (no-op for
+  well-formed PDFs).
+* Implementation : minimal PDF tokenizer that handles `()` strings,
+  `[]` arrays, `<<>>` dicts, `%` comments and tracks q/Q depth.
+
 == v1.0.31.18 — 2026-04-29
 
 === Fixed
