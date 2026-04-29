@@ -3,6 +3,28 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.17 — 2026-04-29
+
+=== Changed
+
+* `shard.yml` `pdf` dep re-pinned `~> 0.3.6` → `~> 0.3.7` (canonical
+  alignment on the current `pdf` version).
+* Three stale code comments updated from `crystal-watermark` →
+  `watermark` in `version.cr`, `config.cr`, `booklet_builder.cr`.
+  No functional change.
+
+== v1.0.31.16 — 2026-04-29
+
+=== Fixed
+
+* **Short `require` statements** restored after the upstream entry-file
+  renames broke the long form. The previous `require "pdf/src/pdf"`
+  and `require "watermark/src/crystal_watermark"` no longer resolve
+  now that the upstream entries are at `src/pdf.cr` and
+  `src/watermark.cr`. The bare-shard-name form
+  (`require "pdf"` / `require "watermark"`) is more robust as it
+  follows the entry declared in each upstream's `shard.yml`.
+
 == v1.0.31.15 — 2026-04-29
 
 === Changed

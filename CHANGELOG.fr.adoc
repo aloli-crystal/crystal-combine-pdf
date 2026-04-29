@@ -3,6 +3,28 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.17 — 2026-04-29
+
+=== Modifié
+
+* Épinglage `shard.yml` de `pdf` re-piné `~> 0.3.6` → `~> 0.3.7`
+  (alignement canonique sur la version actuelle de `pdf`).
+* Trois commentaires obsolètes mis à jour de `crystal-watermark` →
+  `watermark` dans `version.cr`, `config.cr`, `booklet_builder.cr`.
+  Aucun changement fonctionnel.
+
+== v1.0.31.16 — 2026-04-29
+
+=== Corrigé
+
+* **Requires courts** restaurés après que les renommages amont des
+  fichiers d'entrée aient cassé la forme longue. Les anciens
+  `require "pdf/src/pdf"` et `require "watermark/src/crystal_watermark"`
+  ne résolvent plus maintenant que les entrées amont sont à
+  `src/pdf.cr` et `src/watermark.cr`. La forme par nom de shard
+  (`require "pdf"` / `require "watermark"`) est plus robuste car
+  elle suit l'entrée déclarée dans le `shard.yml` de chaque amont.
+
 == v1.0.31.15 — 2026-04-29
 
 === Modifié

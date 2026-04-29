@@ -341,7 +341,7 @@ module CombinePDF
 
     # Filigrane (semi-transparent, en diagonale par défaut).
     #
-    # Délégué à `crystal-watermark` (`Watermark.apply`). Les
+    # Délégué à `watermark` (`Watermark.apply`). Les
     # styles disponibles correspondent à `Watermark::Style` :
     # `"diagonal"`, `"tiled"`, `"header"`, `"footer"`, `"center"`.
     class Watermark

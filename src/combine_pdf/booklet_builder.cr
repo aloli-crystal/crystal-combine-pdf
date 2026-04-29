@@ -180,7 +180,7 @@ module CombinePDF
     end
 
     private def apply_watermark(input : String, output : String, wm : Config::Watermark) : Nil
-      # crystal-watermark a son propre vocabulaire de styles. On mappe
+      # watermark a son propre vocabulaire de styles. On mappe
       # nos chaînes vers ses constantes.
       style = case wm.style
               when "diagonal" then Watermark::Style::Diagonal
