@@ -99,7 +99,7 @@ module CombinePDF
   #            page de partition. Encodage WinAnsi pour le rendu
   #            correct des caractères accentués.
   #
-  # 1.0.31.3 = compatibilité PDF étendue via crystal-pdf v0.3.6 :
+  # 1.0.31.3 = compatibilité PDF étendue via pdf v0.3.6 :
   #            tous les PDF du marché lisibles (xref streams 1.5+,
   #            object streams, scans CCITTFaxDecode, JPEG DCTDecode,
   #            LilyPond, MS Word, Finale, Sibelius). Le Merger

@@ -110,7 +110,7 @@ géométrie réelle de chaque `MediaBox`.
   Refonte de la numérotation : 15 positions cardinales +
   4 duplex-aware (`outer-*` / `inner-*`), 5 styles
   (`plain`/`badge`/`circle`/`square`/`oval`), couverture
-  cover-aware, filigrane via `crystal-watermark`.
+  cover-aware, filigrane via `watermark`.
 * **v1.0.31.3** — ✅ Compatibilité PDF étendue (xref streams 1.5+,
   object streams, scans CCITT, JPEG, LilyPond…) — tous les PDF du
   marché lisibles sans pré-traitement qpdf.
@@ -163,7 +163,7 @@ Pour la CLI :
 git clone https://github.com/aloli-crystal/crystal-combine-pdf
 cd crystal-combine-pdf
 shards build --release
-cp bin/crystal-combine-pdf ~/bin/   # ou utiliser crystal-bin-installer
+cp bin/crystal-combine-pdf ~/bin/   # ou utiliser bin-installer
 ----
 
 == Mode déclaratif
@@ -437,7 +437,7 @@ CombinePDF.assemble(
   du `/`).
 * La sortie de `number` est une **mise à jour incrémentale** (spec
   PDF § 7.5.6) ; `merge` et `assemble` écrivent un PDF neuf depuis
-  zéro. Les deux sont gérés correctement par `crystal-pdf::Reader`
+  zéro. Les deux sont gérés correctement par `pdf::Reader`
   v0.3.4+ et tous les lecteurs PDF du marché.
 
 == Développement

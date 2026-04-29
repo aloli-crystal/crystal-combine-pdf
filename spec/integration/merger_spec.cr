@@ -1,6 +1,6 @@
 require "../spec_helper"
 
-# End-to-end merging: generate fresh A4 PDFs with `crystal-pdf`,
+# End-to-end merging: generate fresh A4 PDFs with `pdf`,
 # run the Merger, and re-parse the output through `PDF::Reader.open`
 # to confirm:
 #   - the page count matches the sum of inputs

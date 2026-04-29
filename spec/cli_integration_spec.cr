@@ -1,7 +1,7 @@
 require "./spec_helper"
 
 # Tests d'intégration de la CLI : `--init`, `--refresh`, build par
-# défaut. Les PDF sont générés à la volée avec `crystal-pdf` pour
+# défaut. Les PDF sont générés à la volée avec `pdf` pour
 # rester indépendants des partitions réelles de l'utilisateur.
 describe "CLI déclarative" do
   describe "ConfigInitializer.init avec InitOptions" do

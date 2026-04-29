@@ -1,11 +1,11 @@
 require "../spec_helper"
 
 # End-to-end numbering: generate fresh A4 / Letter PDFs with
-# `crystal-pdf`, run the Numberer, and re-parse the output through
+# `pdf`, run the Numberer, and re-parse the output through
 # `PDF::Reader.open` to confirm the page count and MediaBox survive
 # the incremental update.
 #
-# crystal-pdf v0.3.4+ correctly re-reads the incremental update
+# pdf v0.3.4+ correctly re-reads the incremental update
 # format that `add_content_stream` produces, so the assertions go
 # through the real reader (no more byte-level workarounds).
 describe CombinePDF::Numberer do

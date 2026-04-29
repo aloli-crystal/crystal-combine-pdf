@@ -1,5 +1,5 @@
-require "crystal-pdf/src/pdf"
-require "crystal-watermark/src/crystal_watermark"
+require "pdf/src/pdf"
+require "watermark/src/crystal_watermark"
 
 require "./combine_pdf/version"
 require "./combine_pdf/options"

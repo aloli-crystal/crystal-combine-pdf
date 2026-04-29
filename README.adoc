@@ -108,7 +108,7 @@ geometry read from the actual `MediaBox` of every page.
   Numbering rewrite: 15 cardinal positions + 4 duplex-aware
   (`outer-*` / `inner-*`), 5 styles
   (`plain`/`badge`/`circle`/`square`/`oval`), cover-aware
-  numbering, watermarks via `crystal-watermark`.
+  numbering, watermarks via `watermark`.
 * **v1.0.31.3** — ✅ Extended PDF compatibility (xref streams 1.5+,
   object streams, CCITT scans, JPEGs, LilyPond, …) — every PDF in
   the wild now readable without qpdf preprocessing.
@@ -161,7 +161,7 @@ For the CLI:
 git clone https://github.com/aloli-crystal/crystal-combine-pdf
 cd crystal-combine-pdf
 shards build --release
-cp bin/crystal-combine-pdf ~/bin/   # or use crystal-bin-installer
+cp bin/crystal-combine-pdf ~/bin/   # or use bin-installer
 ----
 
 == Mode déclaratif
@@ -430,7 +430,7 @@ CombinePDF.assemble(
   embedded font, no Unicode beyond ASCII digits + `/`).
 * The output of `number` uses an **incremental update** (PDF spec
   § 7.5.6) ; `merge` and `assemble` write a fresh PDF from scratch.
-  Both are handled correctly by `crystal-pdf::Reader` v0.3.4+ and
+  Both are handled correctly by `pdf::Reader` v0.3.4+ and
   every real-world PDF reader.
 
 == Development

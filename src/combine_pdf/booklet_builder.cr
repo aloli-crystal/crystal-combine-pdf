@@ -38,9 +38,9 @@ module CombinePDF
       output_path = File.join(@base_dir, @config.output)
 
       # Validation préalable : tente d'ouvrir chaque fichier pour
-      # repérer les rares cas où `crystal-pdf` n'arrive pas à
+      # repérer les rares cas où `pdf` n'arrive pas à
       # parser (PDF malformé, encryption non supportée, etc.).
-      # Depuis crystal-pdf v0.3.6 les xref streams et les filtres
+      # Depuis pdf v0.3.6 les xref streams et les filtres
       # CCITTFaxDecode/DCTDecode/JBIG2Decode sont gérés ;
       # cette boucle attrape les cas restants et donne un message
       # explicite au lieu d'un crash plus loin dans la pipeline.

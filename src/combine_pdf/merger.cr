@@ -260,7 +260,7 @@ module CombinePDF
         # plus an opaque byte payload (which doesn't). Remap the
         # dict, keep the data verbatim.
         #
-        # `Stream#decoded` (crystal-pdf v0.3.6+) tells us if the
+        # `Stream#decoded` (pdf v0.3.6+) tells us if the
         # payload is plain text or still encoded :
         #
         # * `decoded == true` — Reader inverted all filters on the

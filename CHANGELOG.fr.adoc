@@ -3,6 +3,22 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.14 — 2026-04-29
+
+=== Modifié
+
+* **Dépendances mises à jour** suite à la cascade de renommage
+  (convention Aloli : les créations originales abandonnent le préfixe
+  `crystal-` sur l'URL GitHub) :
+** Dépendance Watermark renommée de `crystal-watermark` vers
+   `watermark` (URL `aloli-crystal/watermark`).
+** Dépendance PDF déjà sur `aloli-crystal/pdf` depuis la cascade
+   niveau 0.
+* Clés de dépendance dans `shard.yml`, chemins `require` dans `src/`
+  et références README mis à jour. Aucun changement fonctionnel.
+* Le shard crystal-combine-pdf lui-même est un portage de gem Ruby et
+  *conserve* son préfixe `crystal-` selon la convention.
+
 == v1.0.31.13 — 2026-04-28
 
 **Nettoyage CLI : retrait des drapeaux qui doublaient les
@@ -548,16 +564,16 @@ présence du titre, du sommaire et d'au moins une annotation
 == v1.0.31.3 — 2026-04-27
 
 **Tous les PDF du marché sont désormais lisibles.** Plus besoin
-de pré-traiter avec qpdf : crystal-pdf v0.3.6 lit les xref streams
+de pré-traiter avec qpdf : pdf v0.3.6 lit les xref streams
 PDF 1.5+ et les object streams, et crystal-combine-pdf préserve
 correctement les images non-décodables (CCITTFaxDecode pour les
 scans noir-blanc, DCTDecode pour les JPEG, JBIG2Decode, JPXDecode).
 
 === Changements
 
-* Dépendance bumpée : `crystal-pdf` v0.3.5 → v0.3.6.
+* Dépendance bumpée : `pdf` v0.3.5 → v0.3.6.
 * `Merger#remap` respecte désormais `Stream#decoded` (nouveau
-  drapeau crystal-pdf v0.3.6) :
+  drapeau pdf v0.3.6) :
 ** `decoded == true` → on supprime `/Filter` et `/DecodeParms`
    du dictionnaire (les octets sont clairs, le writer ne ré-encode
    pas).
@@ -569,7 +585,7 @@ scans noir-blanc, DCTDecode pour les JPEG, JBIG2Decode, JPXDecode).
 
 Avant : un PDF source qui contenait une image scannée avec
 `/Filter /CCITTFaxDecode` ressortait du merger comme un pavé gris.
-Le scan était silencieusement corrompu parce que crystal-pdf
+Le scan était silencieusement corrompu parce que pdf
 ne savait pas l'inverser, le merger croyait avoir des octets
 clairs, et le reader suivant tentait d'appliquer le filtre sur du
 contenu déjà décompressé.
@@ -658,7 +674,7 @@ dépendance, `~> 0.1`). Cinq styles supportés : `diagonal`, `tiled`,
 === Validation préalable
 
 `BookletBuilder` ouvre chaque PDF avant la fusion et liste tous les
-fichiers non lisibles par `crystal-pdf` (xref streams PDF 1.5+,
+fichiers non lisibles par `pdf` (xref streams PDF 1.5+,
 filtres CCITTFaxDecode/DCTDecode) avec un message d'erreur clair et
 des contournements suggérés (`qpdf --object-streams=disable`).
 
@@ -732,7 +748,7 @@ pdf << CombinePDF.parse(some_bytes)  # ⇄ CombinePDF.parse(data)
   `metadata_author` — alimentent le dictionnaire `/Info` quand les
   setters de haut niveau `PDF#title=` et `PDF#author=` sont
   utilisés.
-* Toutes les références internes à la shard `crystal-pdf` utilisent
+* Toutes les références internes à la shard `pdf` utilisent
   désormais la forme pleinement qualifiée `::PDF::*` pour éviter
   d'être masquées par la nouvelle classe `CombinePDF::PDF`.
 
@@ -805,7 +821,7 @@ aller-retours `PDF::Reader.open` réels.
 == v0.1.1 — 2026-04-25
 
 Resserre la suite de tests d'intégration et supprime la note de
-limitation v0.1.0 sur la réouverture de la sortie : `crystal-pdf`
+limitation v0.1.0 sur la réouverture de la sortie : `pdf`
 v0.3.4 a corrigé le bug d'offset octet-vs-caractère dans
 `find_xref_offset`, donc les PDF en mise à jour incrémentale
 produits par le Numberer se rouvrent désormais proprement via
