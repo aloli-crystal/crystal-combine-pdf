@@ -3,6 +3,33 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.18 — 2026-04-29
+
+=== Fixed
+
+* **`refresh` adds new entries in the wrong place.** The end-of-section
+  detection in `update_files_section` was over-greedy: it consumed
+  free comments AFTER the `files:` entries (typically the
+  `# ─── Format de page ───` delimiter and its block) as part of the
+  section. New entries then landed at the bottom of that comment
+  block, immediately before `paper_size:`. Fixed by tracking the
+  *last* file-entry line and stopping at the first column-0
+  free-comment delimiter (`# ─── Section ───`) or other top-level
+  YAML key. Indented intra-section comments (column ≥ 2) are still
+  preserved.
+* **`refresh` does not propagate folder rename to `output:`.** When
+  the folder is renamed, the canonical PDF output name should follow.
+  `output:` is now updated to `<dir-basename>.pdf` whenever the new
+  basename differs. `title:` follows only when it was auto-generated
+  (i.e. equal to the previous output basename) — custom titles are
+  preserved.
+* **`refresh` lists the built PDF as an input.** `scan_pdfs`
+  unconditionally collected every `*.pdf` in the directory, including
+  `<dir>.pdf` (the build product). It would then end up as the last
+  entry of `files:`, making the next build self-include the previous
+  build (recursive). Both the *old* and *new* `output:` basenames are
+  now excluded from the input scan.
+
 == v1.0.31.17 — 2026-04-29
 
 === Changed

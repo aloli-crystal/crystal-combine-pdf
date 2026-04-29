@@ -3,6 +3,33 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.18 — 2026-04-29
+
+=== Corrigé
+
+* **`refresh` ajoute les nouvelles entrées au mauvais endroit.** La
+  détection de fin de section dans `update_files_section` était trop
+  gloutonne : elle consommait les commentaires libres APRÈS les
+  entrées `files:` (typiquement le délimiteur `# ─── Format de page ───`
+  et son bloc) comme faisant partie de la section. Les nouvelles
+  entrées s'insèraient alors en bas de ce bloc commentaire, juste
+  avant `paper_size:`. Corrigé en suivant la *dernière* entrée de
+  fichier et en s'arrêtant au premier délimiteur libre à colonne 0
+  (`# ─── Section ───`) ou autre clé YAML top-level. Les commentaires
+  intra-section indentés (colonne ≥ 2) restent préservés.
+* **`refresh` ne propage pas le renommage de dossier à `output:`.**
+  Quand le dossier est renommé, le nom canonique du PDF de sortie
+  doit suivre. `output:` est désormais mis à jour vers
+  `<basename-dossier>.pdf` quand le nouveau basename diffère.
+  `title:` ne suit que s'il était auto-généré (i.e. égal à l'ancien
+  basename de output) — les titres personnalisés sont préservés.
+* **`refresh` liste le PDF buildé comme entrée.** `scan_pdfs`
+  collectait inconditionnellement tous les `*.pdf` du dossier, y
+  compris `<dossier>.pdf` (le produit du build). Il atterrissait
+  alors comme dernière entrée de `files:`, faisant que le build
+  suivant s'auto-incluait (récursif). Les basenames de `output:`
+  *ancien* ET *nouveau* sont désormais exclus du scan.
+
 == v1.0.31.17 — 2026-04-29
 
 === Modifié
