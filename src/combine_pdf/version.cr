@@ -116,5 +116,5 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `crystal-watermark`.
-  VERSION = "1.0.31.13"
+  VERSION = "1.0.31.16"
 end
