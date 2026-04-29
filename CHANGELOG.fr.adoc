@@ -3,6 +3,17 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.15 — 2026-04-29
+
+=== Modifié
+
+* **Références de modules mises à jour** suite au renommage amont
+  du module interne de watermark (convention Aloli : retrait du
+  préfixe `Crystal` sur les noms de modules internes) :
+** `CrystalWatermark::*` → `Watermark::*`
+* Épinglage `shard.yml` watermark re-piné sur `~> 0.1.3`.
+* Aucun changement fonctionnel.
+
 == v1.0.31.14 — 2026-04-29
 
 === Modifié

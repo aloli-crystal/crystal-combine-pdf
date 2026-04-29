@@ -183,22 +183,22 @@ module CombinePDF
       # crystal-watermark a son propre vocabulaire de styles. On mappe
       # nos chaînes vers ses constantes.
       style = case wm.style
-              when "diagonal" then CrystalWatermark::Style::Diagonal
-              when "tiled"    then CrystalWatermark::Style::Tiled
-              when "header"   then CrystalWatermark::Style::Header
-              when "footer"   then CrystalWatermark::Style::Footer
-              when "center"   then CrystalWatermark::Style::Center
-              else                 CrystalWatermark::Style::Diagonal
+              when "diagonal" then Watermark::Style::Diagonal
+              when "tiled"    then Watermark::Style::Tiled
+              when "header"   then Watermark::Style::Header
+              when "footer"   then Watermark::Style::Footer
+              when "center"   then Watermark::Style::Center
+              else                 Watermark::Style::Diagonal
               end
 
-      options = CrystalWatermark::Options.new(
+      options = Watermark::Options.new(
         font_size: wm.font_size,
         color: wm.color,
         opacity: wm.opacity,
         rotation: wm.rotation,
       )
 
-      CrystalWatermark.apply(input, output, wm.text, style, options)
+      Watermark.apply(input, output, wm.text, style, options)
     end
   end
 end
