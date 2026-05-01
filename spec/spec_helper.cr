@@ -48,6 +48,16 @@ module SpecHelper
     {page.width, page.height}
   end
 
+  # Returns the concatenated, decoded content of every page's
+  # content streams. Used by tests that need to assert literal
+  # text presence (e.g. " 1 / 5 ", "Mon Recueil") — since
+  # combine-pdf v1.0.31.20 the merger Flate-compresses streams,
+  # so a raw `File.read` no longer surfaces those substrings.
+  def self.pdf_decoded_text(path : String) : String
+    reader = PDF::Reader.open(path)
+    reader.pages.flat_map { |p| p.content_streams.map { |b| String.new(b) } }.join("\n")
+  end
+
   # Returns the byte-level count of `pattern` in the file at `path`.
   # PDF content streams may contain arbitrary high bytes that break
   # Crystal's UTF-8 regex, so we walk the bytes manually.

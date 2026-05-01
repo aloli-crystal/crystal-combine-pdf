@@ -3,6 +3,35 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.20 — 2026-04-29
+
+=== Corrigé
+
+* **PDF combiné massivement gonflé.** Cas réel (livret de messe avec
+  13 PDFs en entrée totalisant ~3,5 Mo) : sortie ~21 Mo, soit un
+  facteur ~6× de bloat. Cause : quand `Merger#remap` copie un
+  stream que le parser a décodé (`Stream#decoded == true`, cas
+  typique des payloads FlateDecode — polices, images, content
+  streams), il supprimait correctement `/Filter` et `/DecodeParms`
+  mais n'attachait PAS de nouveau filtre Flate. Les octets
+  décompressés étaient alors écrits tels quels par le writer
+  (aucune compression), gonflant la sortie à la somme des tailles
+  décodées.
+* `Merger#remap` attache désormais un `::PDF::Filters::Flate` à
+  chaque stream décodé qu'il copie. Le writer recompresse à
+  l'écriture. Le même livret produit maintenant une sortie de
+  2,6 Mo — *plus petite* que la somme des entrées (la compression
+  Flate uniforme bat parfois l'encodage d'origine). Aucun
+  changement visuel.
+* Trois specs d'intégration qui s'appuyaient sur
+  `File.read(output_path)` pour matcher des sous-chaînes littérales
+  (` 1 / 5 `, `Mon Recueil`, …) sont mises à jour pour utiliser un
+  nouvel helper `SpecHelper.pdf_decoded_text` qui parcourt
+  `PDF::Reader#content_streams` (forme décodée). Les tests
+  d'annotations continuent d'utiliser les octets bruts (les
+  annotations vivent dans le dictionnaire de page, pas dans les
+  content streams).
+
 == v1.0.31.19 — 2026-04-29
 
 === Corrigé

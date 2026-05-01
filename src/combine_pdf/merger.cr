@@ -278,13 +278,23 @@ module CombinePDF
         #   corrupts to grey blobs (or the parser crashes).
         #
         # `/Length` is rewritten from `data.size` either way.
+        #
+        # **Recompression** : si la stream a été décodée par le
+        # parser (`decoded == true`), on attache un filtre Flate au
+        # nouveau stream pour qu'il soit recompressé à l'écriture.
+        # Sans ça les bytes décodés (potentiellement plusieurs Mo
+        # par PDF source : images, content streams, fonts) sont
+        # écrits en clair → bloat ×5-×10. Avec, le résultat est
+        # comparable à la taille cumulée des sources.
         new_dict = remap(obj.dictionary, id_map).as(::PDF::Objects::Dictionary)
         new_dict.delete("Length")
         if obj.decoded
           new_dict.delete("Filter")
           new_dict.delete("DecodeParms")
         end
-        ::PDF::Objects::Stream.new(new_dict, obj.data, obj.decoded)
+        new_stream = ::PDF::Objects::Stream.new(new_dict, obj.data, obj.decoded)
+        new_stream.add_filter(::PDF::Filters::Flate.new) if obj.decoded
+        new_stream
       else
         # Number, Str, Name, Boolean, Null — no nested references.
         obj

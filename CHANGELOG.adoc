@@ -3,6 +3,31 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.20 — 2026-04-29
+
+=== Fixed
+
+* **Combined PDF was massively bloated.** A real-world test (a Mass
+  booklet with 13 input PDFs totaling ~3.5 MB) produced a ~21 MB
+  output — a ~6× bloat. Cause: when `Merger#remap` copies a stream
+  that the parser had decoded (`Stream#decoded == true`, typical
+  case for FlateDecode payloads — fonts, images, content streams),
+  it stripped `/Filter` and `/DecodeParms` correctly but did NOT
+  attach a fresh Flate filter. The decompressed bytes were then
+  written verbatim by the writer (no compression applied), bloating
+  the output to roughly the sum of decoded sizes.
+* `Merger#remap` now attaches a `::PDF::Filters::Flate` filter to
+  every decoded stream it copies. The writer recompresses on output.
+  Same Mass booklet now produces a 2.6 MB output — *smaller* than
+  the sum of inputs (uniform Flate compression ≥ many sources'
+  original encoding). No visual change.
+* Three integration specs that relied on `File.read(output_path)` to
+  surface literal substrings (` 1 / 5 `, `Mon Recueil`, …) updated
+  to use a new `SpecHelper.pdf_decoded_text` helper that walks
+  `PDF::Reader#content_streams` (decoded form). Annotation tests
+  still use raw bytes (annotations live in page dictionaries, not
+  content streams).
+
 == v1.0.31.19 — 2026-04-29
 
 === Fixed

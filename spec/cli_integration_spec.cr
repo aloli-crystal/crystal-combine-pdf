@@ -226,8 +226,10 @@ describe "CLI déclarative" do
       # Les numéros sont bien présents — format global par défaut
       # "• N / T •" (la puce U+2022 = byte 0x95 en WinAnsi). On
       # cherche le pattern entre les puces uniquement pour rester
-      # indépendant de l'encodage.
-      content = File.read(output_path)
+      # indépendant de l'encodage. Depuis v1.0.31.20 le merger
+      # recompresse les streams en Flate, donc on lit le contenu
+      # décodé via `PDF::Reader#content_streams`.
+      content = SpecHelper.pdf_decoded_text(output_path)
       content.should contain(" 1 / 5 ")
       content.should contain(" 5 / 5 ")
       # Marques de partition : p1 = 2 pages, p2 = 3 pages.
@@ -251,7 +253,7 @@ describe "CLI déclarative" do
       builder = CombinePDF::BookletBuilder.from_dir(dir)
       output_path = builder.build
 
-      pdf_content = File.read(output_path)
+      pdf_content = SpecHelper.pdf_decoded_text(output_path)
       # 5 pages totales, cover.mode=recto = 1 page avant + 1 page
       # arrière. Avec include_in_numbering: false, le contenu fait
       # 3 pages, numérotées avec le format par défaut "• N / T •".
@@ -349,12 +351,14 @@ describe "CLI déclarative" do
       # 2 + 3 = 5 pages de contenu, + 1 page TOC = 6 pages au total.
       SpecHelper.page_count(output_path).should eq(6)
 
-      pdf_content = File.read(output_path)
+      decoded = SpecHelper.pdf_decoded_text(output_path)
       # Le titre du recueil doit apparaître dans la TOC
-      pdf_content.includes?("Mon Recueil").should be_true
-      pdf_content.includes?("Sommaire").should be_true
-      # Au moins une annotation Link doit avoir été insérée
-      pdf_content.includes?("/Subtype /Link").should be_true
+      decoded.includes?("Mon Recueil").should be_true
+      decoded.includes?("Sommaire").should be_true
+      # Au moins une annotation Link doit avoir été insérée — les
+      # annotations vivent dans le dictionnaire de page (pas le
+      # content stream), donc on les cherche dans le PDF brut.
+      File.read(output_path).includes?("/Subtype /Link").should be_true
     end
 
     it "rend les dingbats Unicode via ZapfDingbats" do
