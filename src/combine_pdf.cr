@@ -1,5 +1,6 @@
 require "pdf"
 require "watermark"
+require "ghostscript"
 
 require "./combine_pdf/version"
 require "./combine_pdf/options"
@@ -17,6 +18,7 @@ require "./combine_pdf/advanced_numberer"
 require "./combine_pdf/toc_builder"
 require "./combine_pdf/booklet_builder"
 require "./combine_pdf/compressor"
+require "./combine_pdf/user_config"
 
 # CombinePDF — PDF post-processing in pure Crystal.
 #
@@ -140,12 +142,24 @@ module CombinePDF
     end
   end
 
-  # Réduit la taille d'un PDF en le réécrivant avec compression Flate
-  # uniforme + garbage collection des objets non référencés. Voir
-  # `Compressor` pour le détail. Pour le downsampling d'images
-  # (en plus), un futur flag `--deep` passera par
-  # `aloli-crystal/ghostscript`.
-  def self.compress(input : String, output : String, backup : Bool = false) : Compressor::Result
-    Compressor.compress(input, output, backup)
+  # Réduit la taille d'un PDF en le réécrivant. Deux stratégies au
+  # choix :
+  #
+  # * `deep: false` (défaut) — compression Flate uniforme + GC, pur
+  #   Crystal. Gain typique 0-30 %.
+  # * `deep: true` — délègue à Ghostscript : downsampling d'images,
+  #   recompression JPEG, font subsetting. Nécessite `gs` installé.
+  #   Gain typique 50-90 % sur des PDFs riches en images.
+  #
+  # `deep_quality` : preset Ghostscript (`:screen`, `:ebook` *(défaut)*,
+  # `:printer`, `:prepress`) — ignoré quand `deep: false`.
+  def self.compress(
+    input : String,
+    output : String,
+    backup : Bool = false,
+    deep : Bool = false,
+    deep_quality : ::Ghostscript::Quality | Symbol = :ebook,
+  ) : Compressor::Result
+    Compressor.compress(input, output, backup: backup, deep: deep, deep_quality: deep_quality)
   end
 end

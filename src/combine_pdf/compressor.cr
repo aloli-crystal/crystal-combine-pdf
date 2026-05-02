@@ -63,9 +63,24 @@ module CombinePDF
 
     # Compresse `input` vers `output`. Si `output == input`, écrit
     # via un fichier temporaire puis remplace (sécurité crash).
+    #
     # `backup` : si `true`, conserve l'original sous `<input>.bak`
     # avant le remplacement in-place.
-    def compress(input : String, output : String, backup : Bool = false) : Result
+    #
+    # `deep` : si `true`, délègue à Ghostscript (downsampling
+    # d'images, recompression JPEG, font subsetting). Nécessite que
+    # `gs` soit installé. Lève `Error` sinon.
+    #
+    # `deep_quality` : preset de qualité Ghostscript quand `deep:
+    # true`. `:screen` (72 dpi), `:ebook` (150 dpi, défaut),
+    # `:printer` (300 dpi), `:prepress` (300 dpi color-preserving).
+    def compress(
+      input : String,
+      output : String,
+      backup : Bool = false,
+      deep : Bool = false,
+      deep_quality : ::Ghostscript::Quality | Symbol = :ebook,
+    ) : Result
       raise ArgumentError.new("Fichier introuvable : #{input}") unless File.exists?(input)
 
       before_size = File.size(input).to_i64
@@ -74,26 +89,14 @@ module CombinePDF
       in_place = File.expand_path(input) == File.expand_path(output)
       target = in_place ? "#{output}.tmp.#{Process.pid}" : output
 
-      # Le `Merger` recompresse Flate les streams décodés (depuis
-      # v1.0.31.20) ET élimine les objets non référencés (puisqu'il
-      # ne copie QUE les objets atteignables depuis les pages —
-      # `reader.objects.each_value`). C'est notre GC implicite.
-      merger = Merger.new
-      merger.add(input)
-
-      # Préserver Title/Author du PDF d'entrée pour la métadata
-      # de sortie. Le `Producer` sera rafraîchi automatiquement par
-      # le merger.
-      info = read_info(input)
-      merger.metadata_title = info[:title]
-      merger.metadata_author = info[:author]
-
-      merger.save(target)
+      if deep
+        compress_deep(input, target, deep_quality)
+      else
+        compress_flate(input, target)
+      end
 
       if in_place
-        if backup
-          FileUtils.cp(input, "#{input}.bak")
-        end
+        FileUtils.cp(input, "#{input}.bak") if backup
         File.rename(target, input)
         after_path = input
       else
@@ -102,6 +105,42 @@ module CombinePDF
 
       after_size = File.size(after_path).to_i64
       Result.new(before_size, after_size, page_count)
+    end
+
+    # Recompression Flate + GC implicite via `Merger` (pur Crystal).
+    # Voir le commentaire d'en-tête du module pour le détail.
+    private def compress_flate(input : String, target : String) : Nil
+      merger = Merger.new
+      merger.add(input)
+      info = read_info(input)
+      merger.metadata_title = info[:title]
+      merger.metadata_author = info[:author]
+      merger.save(target)
+    end
+
+    # Compression « profonde » via Ghostscript. Downsampling images,
+    # recompression JPEG, font subsetting. Nécessite `gs` installé.
+    private def compress_deep(input : String, target : String, quality) : Nil
+      unless ::Ghostscript.available?
+        raise Error.new(
+          "Ghostscript binary `gs` not found in PATH. " \
+          "Install it with `brew install ghostscript` (macOS), " \
+          "`pkg install ghostscript10` (FreeBSD) or " \
+          "`apt install ghostscript` (Debian/Ubuntu)."
+        )
+      end
+      result = ::Ghostscript.compress(input, target, quality: quality)
+      unless result.success?
+        raise Error.new(
+          "Ghostscript a échoué (exit #{result.exit_code}). " \
+          "stderr : #{result.stderr.lines.first?.try(&.strip)}"
+        )
+      end
+    end
+
+    # Erreur levée par les méthodes du Compressor pour les cas qui
+    # ne sont pas des `ArgumentError`.
+    class Error < Exception
     end
 
     # Lit le dictionnaire `/Info` du PDF d'entrée pour extraire

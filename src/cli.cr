@@ -25,9 +25,34 @@ target_dir = "."
 # ─── Drapeaux du mode `compress` ──────────────────────────────────
 compress_in_place = false
 compress_backup = false
+compress_deep = false
+compress_deep_quality : Symbol = :ebook
+
+# ─── Config user (préférences globales pour `init`) ───────────────
+# Chargée AVANT le parsing CLI pour fixer le profil par défaut. Les
+# drapeaux explicites surchargeront ensuite. Précédence (faible →
+# fort) : profil → config user → drapeaux CLI.
+user_config_path = CombinePDF::UserConfig::DEFAULT_PATH
+# Pré-scan minimaliste de --user-config pour permettre de pointer
+# ailleurs (tests, multi-utilisateur).
+ARGV.each_with_index do |arg, idx|
+  case arg
+  when "--user-config"
+    user_config_path = ARGV[idx + 1] if idx + 1 < ARGV.size
+  when .starts_with?("--user-config=")
+    user_config_path = arg.sub("--user-config=", "")
+  end
+end
+user_loaded = CombinePDF::UserConfig.load(user_config_path)
 
 # ─── Drapeaux du mode `init` (personnalisation du YAML généré) ────
-init_options = CombinePDF::ConfigInitializer::InitOptions.new
+# Initialisé avec le profil de la config user (booklet par défaut),
+# puis les surcharges de la config sont appliquées. La proc renvoie
+# les options modifiées (struct → semantique de valeur).
+init_options = user_loaded.overrides.call(
+  CombinePDF::ConfigInitializer.options_for_profile(user_loaded.profile)
+)
+profile_explicit = false # passé à true dès qu'un --profile est lu
 
 # ─── Drapeaux des sous-commandes historiques ──────────────────────
 output_path = ""
@@ -87,11 +112,20 @@ parser = OptionParser.new do |p|
   # Doit être traité tôt pour que les flags qui suivent puissent surcharger.
   p.on("--profile=NAME", "Profil de défauts : booklet (défaut) | book | report | slides | minimal") do |v|
     begin
-      init_options = CombinePDF::ConfigInitializer.options_for_profile(v)
+      # Quand --profile est explicite, on ré-applique les surcharges
+      # de la config user pour qu'elles l'emportent sur le profil.
+      init_options = user_loaded.overrides.call(
+        CombinePDF::ConfigInitializer.options_for_profile(v)
+      )
+      profile_explicit = true
     rescue ex : ArgumentError
       STDERR.puts "Erreur : #{ex.message}"
       exit 1
     end
+  end
+  p.on("--user-config=PATH", "Chemin custom de la config user (défaut : ~/.crystal-combine-pdf.yml)") do |_v|
+    # Déjà géré par le pré-scan ; ce handler est juste là pour que
+    # OptionParser ne se plaigne pas.
   end
 
   # Réglages directs (overrides des valeurs déduites)
@@ -137,6 +171,19 @@ parser = OptionParser.new do |p|
   p.separator "Options pour `compress` :"
   p.on("-i", "--in-place", "Réécrit le fichier d'entrée (avec un .tmp atomique)") { compress_in_place = true }
   p.on("--backup", "Avec --in-place : conserve l'original sous .bak") { compress_backup = true }
+  p.on("--deep", "Compression profonde via gs (downsampling images, JPEG, fonts). Nécessite ghostscript installé.") { compress_deep = true }
+  p.on("--deep-quality=Q", "Preset gs : screen | ebook (défaut) | printer | prepress") do |v|
+    compress_deep_quality = case v.downcase
+                            when "screen"   then :screen
+                            when "ebook"    then :ebook
+                            when "printer"  then :printer
+                            when "prepress" then :prepress
+                            when "default"  then :default
+                            else
+                              STDERR.puts "Erreur : preset --deep-quality inconnu : #{v}. Attendu : screen | ebook | printer | prepress"
+                              exit 1
+                            end
+  end
 
   p.separator ""
   p.separator "Options des sous-commandes historiques :"
@@ -255,8 +302,13 @@ if mode_compress
     end
 
   begin
-    result = CombinePDF::Compressor.compress(input, output, backup: compress_backup)
-    puts "✓ #{result}"
+    result = CombinePDF::Compressor.compress(
+      input, output,
+      backup: compress_backup,
+      deep: compress_deep,
+      deep_quality: compress_deep_quality,
+    )
+    puts "✓ #{result}#{compress_deep ? " [deep, gs:#{compress_deep_quality}]" : ""}"
     puts "  pages: #{result.pages}"
     if compress_in_place
       puts "  écrit dans : #{input}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"

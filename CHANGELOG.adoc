@@ -3,6 +3,55 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.23 — 2026-05-02
+
+=== Added
+
+* **Config user `~/.crystal-combine-pdf.yml`** : préférences globales
+  pour `init`, partagées entre tous les projets. Précédence (faible
+  → fort) : profil → config user → drapeaux CLI. Format YAML :
++
+[source,yaml]
+----
+default_profile: book          # profil par défaut quand --profile absent
+author: "Philippe Nénert"      # override de l'auteur déduit (git config)
+paper_size: a4
+duplex: true
+----
++
+* `--user-config=PATH` pour pointer ailleurs (tests, multi-utilisateur).
+* Module `CombinePDF::UserConfig` exposant `.load(path) : Loaded` ;
+  tolérant aux fichiers absents ou YAML invalide (retourne un
+  résultat neutre).
+
+* **`compress --deep`** : compression profonde via Ghostscript
+  (downsampling images, recompression JPEG, font subsetting).
+  Nécessite `gs` installé (`brew install ghostscript` /
+  `pkg install ghostscript10` / `apt install ghostscript`).
++
+Test sur PDF réel (livret de messe, 621 Ko) :
++
+[cols="2,1,1"]
+|===
+| Mode | Sortie | Réduction
+
+| Sans option (Flate)             | 620 Ko | 0,1 %
+| `--deep`                         | 106 Ko | 82,9 %
+| `--deep --deep-quality=screen`   | 100 Ko | 84,0 %
+|===
++
+* `--deep-quality=Q` : preset gs (`screen` | `ebook` *(défaut)* |
+  `printer` | `prepress`).
+* Si `gs` n'est pas installé, `--deep` lève une erreur claire avec
+  les commandes d'installation par OS.
+
+=== Changed
+
+* Nouvelle dépendance shard : `aloli-crystal/ghostscript ~> 0.1`
+  (création soeur, MIT, wrapper pur shell-out autour de `gs`).
+* `Compressor.compress` accepte désormais `deep:` et `deep_quality:`.
+* `CombinePDF.compress` : nouvelle signature avec ces paramètres.
+
 == v1.0.31.22 — 2026-05-02
 
 === Added
