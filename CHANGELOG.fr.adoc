@@ -3,6 +3,51 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.22 — 2026-05-02
+
+=== Ajouté
+
+* **`crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]`** :
+  réduit la taille d'un PDF unique en pur Crystal (sans dépendance
+  réseau ni service en ligne).
++
+Stratégie :
++
+1. **Recompression Flate** uniforme via le `Merger` (depuis v1.0.31.20).
+2. **Garbage collection** implicite : seuls les objets atteignables
+   depuis le `/Catalog` sont copiés.
+3. **Métadonnées rafraîchies** : `Producer` mis à jour, `Title`/
+   `Author` préservés.
++
+Gain typique 30-80 % selon le profil de compression d'origine.
+Sortie typique :
++
+[source]
+----
+$ crystal-combine-pdf compress kyrie.pdf
+✓ 355,1 Ko → 266,6 Ko (24,9 %)
+  pages: 1
+  écrit dans : kyrie-compressed.pdf
+----
++
+Drapeaux :
++
+* `-o SORTIE.pdf` : chemin de sortie explicite (défaut :
+  `<input>-compressed.pdf`).
+* `-i` / `--in-place` : réécrit le fichier d'entrée via un
+  fichier temporaire atomique.
+* `--backup` : avec `-i`, conserve l'original sous `.bak`.
++
+*Limitations* (v1) : pas de downsampling d'images (300 DPI → 150 DPI),
+pas de recompression JPEG, pas de subsetting de polices. Pour ces
+optimisations, un futur flag `--deep` déléguera à
+`aloli-crystal/ghostscript`.
+* API : `CombinePDF.compress(input, output, backup: false)` retourne
+  un `Compressor::Result` avec `before`, `after`, `pages` et
+  `reduction_percent`.
+* `Compressor::Result#to_s` formate joliment les tailles
+  (Ko / Mo / pourcentage).
+
 == v1.0.31.21 — 2026-05-02
 
 === Ajouté

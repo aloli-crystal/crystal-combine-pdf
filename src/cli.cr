@@ -18,8 +18,13 @@ require "./combine_pdf"
 # ─── Drapeaux globaux du mode déclaratif ──────────────────────────
 mode_init = false
 mode_refresh = false
+mode_compress = false
 recursive = false
 target_dir = "."
+
+# ─── Drapeaux du mode `compress` ──────────────────────────────────
+compress_in_place = false
+compress_backup = false
 
 # ─── Drapeaux du mode `init` (personnalisation du YAML généré) ────
 init_options = CombinePDF::ConfigInitializer::InitOptions.new
@@ -56,6 +61,12 @@ parser = OptionParser.new do |p|
         Construit le livret depuis .crystal-combine-pdf.yml du
         dossier courant : assemble, numérote, ajoute filigrane,
         page de titre + sommaire cliquable.
+
+      crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]
+        Réduit la taille d'un PDF (recompression Flate uniforme +
+        garbage collection des objets orphelins). Gain typique 30-80
+        %. Pas de downsampling d'images en pur Crystal — voir le
+        futur flag --deep pour ce besoin (via aloli-crystal/ghostscript).
 
     Sous-commandes historiques :
       number FICHIER                Numérote les pages d'un PDF existant
@@ -123,6 +134,11 @@ parser = OptionParser.new do |p|
   end
 
   p.separator ""
+  p.separator "Options pour `compress` :"
+  p.on("-i", "--in-place", "Réécrit le fichier d'entrée (avec un .tmp atomique)") { compress_in_place = true }
+  p.on("--backup", "Avec --in-place : conserve l'original sous .bak") { compress_backup = true }
+
+  p.separator ""
   p.separator "Options des sous-commandes historiques :"
   p.on("-o FICHIER", "--output=FICHIER", "Fichier de sortie") { |v| output_path = v }
   p.on("--partitions=LIST", "Tailles séparées par virgules (ex: 4,2,1)") do |v|
@@ -181,6 +197,9 @@ if !positional.empty?
     # on consomme le mot pour que `positional.empty?` plus loin
     # déclenche la branche `build`.
     positional = positional[1..]
+  when "compress"
+    mode_compress = true
+    positional = positional[1..]
   end
 end
 
@@ -209,6 +228,41 @@ if mode_refresh
   begin
     summary = CombinePDF::ConfigRefresher.refresh(target_dir, recursive)
     puts "✓ Rafraîchi : #{summary}"
+    exit 0
+  rescue ex
+    STDERR.puts "Erreur : #{ex.message}"
+    exit 1
+  end
+end
+
+# Mode compress
+if mode_compress
+  if positional.empty?
+    STDERR.puts "Erreur : compress nécessite un fichier d'entrée."
+    STDERR.puts "Usage : crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]"
+    exit 1
+  end
+  input = positional.first
+  output =
+    if compress_in_place
+      input
+    elsif !output_path.empty?
+      output_path
+    else
+      ext = File.extname(input)
+      base = input[0, input.size - ext.size]
+      "#{base}-compressed#{ext}"
+    end
+
+  begin
+    result = CombinePDF::Compressor.compress(input, output, backup: compress_backup)
+    puts "✓ #{result}"
+    puts "  pages: #{result.pages}"
+    if compress_in_place
+      puts "  écrit dans : #{input}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"
+    else
+      puts "  écrit dans : #{output}"
+    end
     exit 0
   rescue ex
     STDERR.puts "Erreur : #{ex.message}"

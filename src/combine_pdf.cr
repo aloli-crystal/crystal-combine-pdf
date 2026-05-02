@@ -16,6 +16,7 @@ require "./combine_pdf/config_refresher"
 require "./combine_pdf/advanced_numberer"
 require "./combine_pdf/toc_builder"
 require "./combine_pdf/booklet_builder"
+require "./combine_pdf/compressor"
 
 # CombinePDF — PDF post-processing in pure Crystal.
 #
@@ -137,5 +138,14 @@ module CombinePDF
     ensure
       File.delete(tmp) if File.exists?(tmp)
     end
+  end
+
+  # Réduit la taille d'un PDF en le réécrivant avec compression Flate
+  # uniforme + garbage collection des objets non référencés. Voir
+  # `Compressor` pour le détail. Pour le downsampling d'images
+  # (en plus), un futur flag `--deep` passera par
+  # `aloli-crystal/ghostscript`.
+  def self.compress(input : String, output : String, backup : Bool = false) : Compressor::Result
+    Compressor.compress(input, output, backup)
   end
 end
