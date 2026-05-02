@@ -57,6 +57,89 @@ describe "CLI déclarative" do
     end
   end
 
+  describe "ConfigInitializer profiles" do
+    it "options_for_profile retourne les bons défauts pour chaque profil" do
+      booklet = CombinePDF::ConfigInitializer.options_for_profile("booklet")
+      booklet.profile.should eq("booklet")
+      booklet.global_style.should eq("oval")
+      booklet.partition_enabled.should be_true
+      booklet.partition_font_size.should eq(27)
+
+      book = CombinePDF::ConfigInitializer.options_for_profile("book")
+      book.profile.should eq("book")
+      book.duplex.should be_true
+      book.global_style.should eq("plain")
+      book.global_position.should eq("outer-bottom")
+      book.partition_enabled.should be_false
+      book.toc_state.should eq(:enabled)
+
+      report = CombinePDF::ConfigInitializer.options_for_profile("report")
+      report.profile.should eq("report")
+      report.global_format.should contain("Page")
+      report.partition_enabled.should be_false
+      report.toc_state.should eq(:enabled)
+
+      slides = CombinePDF::ConfigInitializer.options_for_profile("slides")
+      slides.profile.should eq("slides")
+      slides.partition_enabled.should be_false
+      slides.global_font_size.should eq(9)
+
+      minimal = CombinePDF::ConfigInitializer.options_for_profile("minimal")
+      minimal.profile.should eq("minimal")
+      minimal.numbering_enabled.should be_false
+      minimal.partition_enabled.should be_false
+      minimal.toc_state.should eq(:omitted)
+      minimal.watermark_state.should eq(:omitted)
+    end
+
+    it "lève ArgumentError pour un profil inconnu" do
+      expect_raises(ArgumentError, /Profil inconnu/) do
+        CombinePDF::ConfigInitializer.options_for_profile("zorblax")
+      end
+    end
+
+    it "le profil book génère un YAML duplex avec partition désactivée" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-profile-book")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer.options_for_profile("book")
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("duplex: true")
+      content.should contain("position: outer-bottom")
+      content.should contain("Numérotation intra-partition désactivée")
+      content.should contain("--profile book")
+    end
+
+    it "le profil minimal génère un YAML compact (numbering off, sections omises)" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-profile-minimal")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer.options_for_profile("minimal")
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("--profile minimal")
+      content.should contain("enabled: false")
+      content.should_not contain("\ntoc:\n")
+      content.should_not contain("# toc:")
+      content.should_not contain("watermark:")
+      content.should_not contain("# watermark:")
+    end
+
+    it "le profil booklet préserve les défauts historiques (rétrocompat)" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-profile-booklet")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      opts = CombinePDF::ConfigInitializer.options_for_profile("booklet")
+      CombinePDF::ConfigInitializer.init(dir, options: opts)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("style: oval")
+      content.should contain("font_size: 27")
+      content.should contain("hide_when_single: true")
+      content.should contain("• %page% / %total% •")
+    end
+  end
+
   describe "ConfigInitializer.init" do
     it "génère un YAML avec la liste des PDF du dossier" do
       dir = File.join(SpecHelper::TMP_DIR, "init-test")

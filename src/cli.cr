@@ -72,6 +72,17 @@ parser = OptionParser.new do |p|
   p.separator ""
   p.separator "Options pour `init` (personnalisent le YAML généré) :"
 
+  # Profil — applique les défauts d'un profil avant les autres flags.
+  # Doit être traité tôt pour que les flags qui suivent puissent surcharger.
+  p.on("--profile=NAME", "Profil de défauts : booklet (défaut) | book | report | slides | minimal") do |v|
+    begin
+      init_options = CombinePDF::ConfigInitializer.options_for_profile(v)
+    rescue ex : ArgumentError
+      STDERR.puts "Erreur : #{ex.message}"
+      exit 1
+    end
+  end
+
   # Réglages directs (overrides des valeurs déduites)
   p.on("--paper-size=SIZE", "a4 (défaut) | letter | legal | a3 | a5 | b5 | executive | WxH") do |v|
     init_options.paper_size = v

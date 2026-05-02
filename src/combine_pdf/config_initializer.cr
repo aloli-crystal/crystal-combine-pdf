@@ -29,6 +29,9 @@ module CombinePDF
     # * `:omitted` — section absente du YAML (pour les utilisateurs
     #               qui veulent un fichier compact)
     struct InitOptions
+      # Profil utilisé pour produire ces options (pour annoter le YAML)
+      property profile : String = "booklet"
+
       # Réglages directs (overrides des valeurs déduites)
       property paper_size : String = "a4"
       property duplex : Bool = false
@@ -36,9 +39,22 @@ module CombinePDF
       property author : String? = nil
       property output : String? = nil
 
-      # Numérotation
+      # Numérotation — couche globale
       property numbering_enabled : Bool = true
       property global_format : String = "\u{2022} %page% / %total% \u{2022}"
+      property global_style : String = "oval"
+      property global_position : String = "bottom-right"
+      property global_font_size : Int32 = 13
+      property global_bold : Bool = false
+
+      # Numérotation — couche partition (n/total dans la partition)
+      property partition_enabled : Bool = true
+      property partition_format : String = "%page% / %total%"
+      property partition_style : String = "plain"
+      property partition_position : String = "top-right"
+      property partition_font_size : Int32 = 27
+      property partition_bold : Bool = true
+      property partition_hide_when_single : Bool = true
 
       # Couverture
       property cover_mode : String = "none"
@@ -51,6 +67,111 @@ module CombinePDF
 
       def initialize
       end
+    end
+
+    # Profils disponibles. Chacun retourne une `InitOptions` aux défauts
+    # appropriés à un cas d'usage. Les valeurs peuvent ensuite être
+    # surchargées par les flags CLI.
+    PROFILES = %w(booklet book report slides minimal)
+
+    # Construit une `InitOptions` pour un profil donné. Lève
+    # `ArgumentError` si le profil est inconnu.
+    def self.options_for_profile(name : String) : InitOptions
+      case name
+      when "booklet"
+        booklet_options
+      when "book"
+        book_options
+      when "report"
+        report_options
+      when "slides"
+        slides_options
+      when "minimal"
+        minimal_options
+      else
+        raise ArgumentError.new("Profil inconnu : #{name}. Disponibles : #{PROFILES.join(", ")}")
+      end
+    end
+
+    # Profil livret musical / liturgique — c'est le défaut historique.
+    # * Numéro global en pastille oval bas-droite, format « • N / T • »
+    # * Numéro de partition en gros bold haut-droite (27 pt) pour
+    #   être lu à 1 m sur un pupitre.
+    # * `hide_when_single` masque le numéro partition pour les
+    #   partitions d'une seule page.
+    def self.booklet_options : InitOptions
+      opts = InitOptions.new
+      opts.profile = "booklet"
+      opts
+    end
+
+    # Profil livre / recueil texte (rapport long, polycopié).
+    # * Recto-verso (`duplex: true`) avec position duplex-aware
+    #   `outer-bottom` (alterne droite/gauche par parité).
+    # * Numéro global discret en plain bottom, taille corps de texte.
+    # * Pas de partition (les chapitres ne sont pas des partitions).
+    # * TOC active par défaut.
+    def self.book_options : InitOptions
+      opts = InitOptions.new
+      opts.profile = "book"
+      opts.duplex = true
+      opts.global_format = "%page% / %total%"
+      opts.global_style = "plain"
+      opts.global_position = "outer-bottom"
+      opts.global_font_size = 10
+      opts.partition_enabled = false
+      opts.toc_state = :enabled
+      opts
+    end
+
+    # Profil rapport pro / dossier.
+    # * Recto seul (impression bureau standard).
+    # * Numéro global format `Page N sur T` plain bottom-right.
+    # * Pas de partition.
+    # * TOC active par défaut.
+    # * Watermark visible (commentée) — ouvre la voie à un « DRAFT »
+    #   ou « CONFIDENTIAL » en deux secondes.
+    def self.report_options : InitOptions
+      opts = InitOptions.new
+      opts.profile = "report"
+      opts.global_format = "Page %page% sur %total%"
+      opts.global_style = "plain"
+      opts.global_position = "bottom-right"
+      opts.global_font_size = 10
+      opts.partition_enabled = false
+      opts.toc_state = :enabled
+      opts
+    end
+
+    # Profil binding de slides PDF (déjà exportés par Keynote, PowerPoint…).
+    # * Numéro global discret bottom-right (le slide a déjà sa mise
+    #   en page).
+    # * Pas de partition.
+    # * Pas de TOC ni watermark par défaut (la signalétique est dans
+    #   les slides eux-mêmes).
+    def self.slides_options : InitOptions
+      opts = InitOptions.new
+      opts.profile = "slides"
+      opts.global_format = "%page% / %total%"
+      opts.global_style = "plain"
+      opts.global_position = "bottom-right"
+      opts.global_font_size = 9
+      opts.partition_enabled = false
+      opts
+    end
+
+    # Profil minimal — concaténation pure, aucune numérotation, YAML
+    # le plus court possible. Idéal pour fusionner sans toucher au
+    # contenu.
+    def self.minimal_options : InitOptions
+      opts = InitOptions.new
+      opts.profile = "minimal"
+      opts.numbering_enabled = false
+      opts.partition_enabled = false
+      opts.toc_state = :omitted
+      opts.watermark_state = :omitted
+      opts.header_state = :omitted
+      opts
     end
 
     # Initialise le YAML dans `dir`. Lève si le fichier existe déjà.
@@ -129,7 +250,7 @@ module CombinePDF
 
       String.build do |s|
         s << "# .crystal-combine-pdf.yml\n"
-        s << "# Généré par `crystal-combine-pdf init` — éditez librement.\n"
+        s << "# Généré par `crystal-combine-pdf init --profile #{options.profile}` — éditez librement.\n"
         s << "# Pour rafraîchir après ajout/retrait de PDF :\n"
         s << "#   crystal-combine-pdf refresh\n"
         s << "\n"
@@ -277,48 +398,73 @@ module CombinePDF
       s << "numbering:\n"
       s << "  enabled: " << options.numbering_enabled << "            # désactive toute la numérotation si false\n"
       s << "\n"
+      build_section_global(s, options)
+      build_section_partition(s, options)
+      build_section_header(s, options)
+      s << "  skip_pages: []           # 1-based ; ex: [1] pour épargner\n\n"
+    end
+
+    private def build_section_global(s : IO, options : InitOptions) : Nil
       s << <<-GLOBAL
-          # Numéro global (ex: "• 6 / 12 •" sur la 6e page d'un
-          # livret de 12 pages utiles). Le total est utile : un
-          # musicien qui tient une page seule sait combien de pages
-          # restent. Les puces typographiques (• U+2022) ressortent
-          # mieux que les tirets ASCII.
+          # Numéro global de page (ex: "6 / 12" ou "• 6 / 12 •" sur la
+          # 6e page d'un document de 12 pages utiles).
           global:
             enabled: true
             format: "#{options.global_format}"
-            style: oval            # pastille gris pâle bordure fine
-            position: bottom-right
-            font_size: 13
+            style: #{options.global_style}
+            position: #{options.global_position}
+            font_size: #{options.global_font_size}
             color: "#000000"
             margin: 24
-            bold: false
+            bold: #{options.global_bold}
             italic: false
 
-          # ─── Numérotation intra-partition ─────────────────────────
-          # Pour un recueil composé de plusieurs partitions (morceaux,
-          # chants, fascicules…), affiche en plus de la numérotation
-          # globale une marque "n / t" (ex: "2 / 4" sur la 2e page
-          # d'une partition de 4 pages). Les tailles de partitions
-          # sont auto-détectées : chaque fichier de la liste `files:`
-          # = une partition. `hide_when_single: true` masque la
-          # marque pour les partitions d'une seule page.
-          partition:
-            enabled: true
-            format: "%page% / %total%"
-            style: plain
-            position: top-right
-            font_size: 27           # gros pour être lu à 1m
-            color: "#000000"
-            margin: 24
-            bold: true              # Helvetica-Bold
-            italic: false
-            hide_when_single: true
 
         GLOBAL
+    end
 
-      build_section_header(s, options)
+    private def build_section_partition(s : IO, options : InitOptions) : Nil
+      if options.partition_enabled
+        s << <<-PARTITION
+            # ─── Numérotation intra-partition ─────────────────────────
+            # Pour un recueil composé de plusieurs partitions (morceaux,
+            # chants, fascicules…), affiche en plus de la numérotation
+            # globale une marque "n / t" (ex: "2 / 4" sur la 2e page
+            # d'une partition de 4 pages). Les tailles de partitions
+            # sont auto-détectées : chaque fichier de la liste `files:`
+            # = une partition. `hide_when_single: true` masque la
+            # marque pour les partitions d'une seule page.
+            partition:
+              enabled: true
+              format: "#{options.partition_format}"
+              style: #{options.partition_style}
+              position: #{options.partition_position}
+              font_size: #{options.partition_font_size}
+              color: "#000000"
+              margin: 24
+              bold: #{options.partition_bold}
+              italic: false
+              hide_when_single: #{options.partition_hide_when_single}
 
-      s << "  skip_pages: []           # 1-based ; ex: [1] pour épargner\n\n"
+
+          PARTITION
+      else
+        s << <<-DISABLED
+            # Numérotation intra-partition désactivée (profil sans
+            # notion de partition). Pour activer, décommenter et
+            # ajuster :
+            # partition:
+            #   enabled: true
+            #   format: "%page% / %total%"
+            #   style: plain
+            #   position: top-right
+            #   font_size: 27
+            #   bold: true
+            #   hide_when_single: true
+
+
+          DISABLED
+      end
     end
 
     private def build_section_header(s : IO, options : InitOptions) : Nil
