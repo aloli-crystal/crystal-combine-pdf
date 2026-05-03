@@ -163,6 +163,10 @@ visiteur sur `/download` pour proposer le bon installeur en haut.
   en haut.
 * **`/about`** — vitrine ALOLI : stack utilisée, autres shards de
   l'écosystème, contact pro.
+* **`/api/v1/...`** — API REST headless, **réservée Pro** (cf.
+  section « API + anti-abuse »).
+* **`/docs/api`** — documentation OpenAPI 3.1, exemples curl + 5
+  langages (Crystal, Ruby, Python, JS, Bash).
 
 ==== Fonctionnalités v1
 
@@ -280,6 +284,153 @@ Stack paiement candidate :
   native. Frais ~1,5 %+0,25 € par tx (CB UE).
 * **Mollie** — alternative européenne, frais similaires, support
   Bancontact/iDEAL/Klarna utile pour les marchés DE/NL/BE/AT.
+
+==== API + anti-abuse
+
+Décision Philippe (2026-05-03) : API REST publique, **réservée
+au plan Pro**. L'anti-abuse est traité avec **un sérieux total**
+— c'est un service hébergé chez ALOLI, pas un terrain de jeu pour
+les bots de scraping. Quelques touches d'humour acceptables côté
+réponses HTTP, jamais côté politique.
+
+===== Endpoints v1
+
+[cols="3,4"]
+|===
+| Endpoint | Description
+
+| `POST /api/v1/jobs`
+| Crée un job de combinaison/compression. Multipart : N fichiers PDF + paramètres JSON (`profile`, `deep`, `output_name`). Renvoie `{job_id, status, eta_seconds}`.
+
+| `GET /api/v1/jobs/:id`
+| Statut du job. `{status: pending\|running\|done\|failed, progress: 0..100, error?}`. Polling recommandé toutes les 2 s.
+
+| `GET /api/v1/jobs/:id/result`
+| Télécharge le PDF résultat. Disponible 10 min après `status=done`. Headers `Content-Disposition: attachment; filename="..."`.
+
+| `DELETE /api/v1/jobs/:id`
+| Annule (si pending/running) ou supprime le résultat (si done) avant la purge automatique. Pour les utilisateurs très soucieux de leur empreinte.
+
+| `GET /api/v1/me`
+| Infos sur la clé : plan, quotas restants, fenêtre de rate-limit. Utile pour les dashboards clients.
+
+| `POST /api/v1/jobs` *(webhook variante)*
+| Header `X-Callback-Url: https://...` + `X-Callback-Secret: ...`. Job traité de manière asynchrone, callback HTTP POST signé HMAC-SHA256 quand `done`. Évite le polling.
+|===
+
+===== Authentification
+
+* **API key** par compte Pro. Format : `alolipdf_pk_<32 chars>` (live)
+  ou `alolipdf_sk_<32 chars>` (test). Préfixe pour le secret
+  scanning de GitHub/GitLab.
+* Header `Authorization: Bearer alolipdf_pk_...` ou
+  `X-Api-Key: alolipdf_pk_...` (deux conventions courantes).
+* Rotation à la demande dans le dashboard Pro. Ancienne clé valide
+  24 h après rotation pour éviter de casser les déploiements en
+  production.
+* Aucune clé pour le plan gratuit — l'API n'est pas un détour pour
+  contourner la limite des 7 pages.
+
+===== Quotas par plan
+
+[cols="2,2,2,3"]
+|===
+| Limite | Free *(non applicable, pas d'API)* | Pro Personal | Pro Business
+
+| Requêtes / minute
+| —
+| 30
+| 120
+
+| Requêtes / jour
+| —
+| 1 000
+| 10 000
+
+| Pages output / mois
+| —
+| 5 000
+| 50 000
+
+| Concurrents
+| —
+| 3
+| 10
+
+| Webhook destination
+| —
+| 1 URL
+| 5 URLs
+|===
+
+===== Anti-abuse (« très très sérieux »)
+
+Couches superposées, tirées des bonnes pratiques d'API publiques
+modernes :
+
+. **Rate limiting** — sliding window par clé API + par IP. Headers
+  standards `RateLimit-Limit`, `RateLimit-Remaining`,
+  `RateLimit-Reset` (RFC 9239). Dépassement → `429 Too Many Requests`
+  + `Retry-After`.
+. **Body size limits** stricts par endpoint.
+  Upload PDF : 50 Mo agrégé. Tout dépassement renvoie
+  **`413 Payload Too Large`** *avant* lecture du body (parsing tronqué).
+. **Page count check** côté serveur : un PDF d'entrée massif
+  (>10 000 pages) est rejeté **`422 Unprocessable Entity`** — pas
+  d'utilisateur légitime n'envoie ça.
+. **MIME sniff** : on ne fait pas confiance au `Content-Type` du
+  client. Le fichier est sniffé via les magic bytes ; si pas
+  `%PDF-`, rejet **`415 Unsupported Media Type`**.
+. **Timeout par job** : 60 s pour Pro Personal, 300 s pour Business.
+  Au-delà → `504 Gateway Timeout` + cleanup forcé du worker.
+. **Limite concurrents** par clé. Au-delà → `429 + Retry-After`.
+. **Anti-réplay** : nonce optionnel via `X-Idempotency-Key` (RFC en
+  cours, conv. Stripe/Square). Permet de re-tenter sans dupliquer.
+. **IP reputation** : block list publique (Spamhaus DROP, Tor exit
+  nodes pour les utilisateurs anonymes — moins strict pour Pro
+  authentifié). Pas de Cloudflare en frontline pour préserver la
+  privacy ; on tient nos propres listes minimalistes.
+. **Détection de patterns abusifs** :
+  ** Mêmes fichiers (hash SHA-256) ré-uploadés en boucle → tarpit.
+  ** Volume soudain en milieu de nuit (3h-6h locale) → flag.
+  ** User-Agent vide ou « python-requests/2.x sans header
+     `Accept` » → score abus.
+  ** Requêtes en série depuis 50 IPs avec le même fingerprint TCP
+     → CAPTCHA si humain, blocage si bot évident.
+. **Tarpit** pour les abus détectés : on accepte la requête, on
+  répond *très* lentement (10 s, 30 s, 60 s, croissant). Coût
+  serveur quasi nul (`sleep`) mais coût client réel (le scraper
+  parallèle se bloque).
+. **Logs de sécurité** : RFC 5424 syslog, conservation 90 j,
+  hashage des IPs (k-anonymity) au-delà. Conformité RGPD assurée.
+
+===== Touches d'humour autorisées
+
+* `418 I'm a teapot` pour les requêtes avec `User-Agent: <vide>` ou
+  manifestement crawler. RFC officielle, ça passe partout.
+* Réponse JSON sur `429` :
++
+[source,json]
+----
+{
+  "error": "rate_limited",
+  "message": "Slow down — alolipdf is brewed by humans, not for bots.",
+  "retry_after": 47
+}
+----
+* Page `/api/teapot` (Easter egg) qui répond toujours `418`.
+  Référencée nulle part dans la doc officielle. Trouvée par les
+  curieux, ignorée par les bots.
+
+===== Hors-périmètre v1 de l'API
+
+* SDK officiels (Crystal, Ruby, Python). À publier comme shards
+  séparés sous `aloli-crystal/alolipdf-client-*` quand l'API se
+  stabilise.
+* OAuth 2.0 / OIDC pour les workflows applicatifs. API key suffit
+  largement pour la cible Pro initiale.
+* Webhook re-delivery automatique sur échec — manuel pour l'instant
+  via `POST /api/v1/jobs/:id/replay-webhook`.
 
 ==== Phasage v1 → v2
 
