@@ -131,7 +131,7 @@ Effort estimé : **L à XL** (1-2 sem. selon polish).
 | Templates serveur | Templates Marten + HTMX pour les interactions I/O (upload, polling de job, téléchargement).
 | Client-side rich  | **Opal** (Ruby → JS) pour drag-drop, validation immédiate des fichiers, thumbnails, détection auto de l'OS sur la page Download. `aloli-crystal/deploy --opal-assets` gère déjà la compilation.
 | Styling          | **Bulma**. CSS framework pragmatique, pas de processus de build lourd, mode dark prêt.
-| i18n             | Module Marten i18n natif. **FR + EN dès la v1**, autres langues activables au fil des contributions (mécanisme léger : un fichier YAML par langue).
+| i18n             | Module Marten i18n natif. **FR + EN dès la v1**. Trajectoire d'extension formalisée — cf. section « Stratégie multilingue » ci-dessous.
 | File upload      | Multipart standard, taille max ~50 Mo, stockage éphémère (`/tmp/<uuid>/`, purge **à T+10 min** via cron). Cf. note « Pas un service de transfert ».
 | Queue            | Synchrone via `Process.run` tant que les jobs restent < 30 s ; passer à un worker dédié si la latence devient un problème.
 | Auth             | Aucune en v1 (anonyme, lien éphémère pour télécharger). Identité Aloli optionnelle plus tard via `aloli-crystal/saml` ou `aloli-crystal/kemal-auth`.
@@ -197,6 +197,66 @@ Conséquences concrètes sur la conception v1 :
 Comptes utilisateurs, historique persistant, OCR, édition
 page-par-page (réordonner / supprimer / scinder), signatures, envoi
 par e-mail du lien, partage social.
+
+==== Stratégie multilingue
+
+Décision Philippe (2026-05-03) : viser progressivement **toutes les
+langues de l'UE** (24 langues officielles) puis évaluer une
+extension hors UE.
+
+Approche en 4 phases pour rester réaliste sans diluer la qualité.
+Pourcentages = part de la population UE qui a la langue comme
+langue maternelle (CE 2022). FR + EN couvrent déjà ~17 % + langue
+seconde majoritaire pour 38 % supplémentaires.
+
+[cols="1,2,3,4"]
+|===
+| Phase | Échéance | Langues ajoutées | Couverture EU cumulée
+
+| 1
+| **v1, mi-mai 2026**
+| **FR + EN**
+| ~16 % natif + EN comme L2 dominante
+
+| 2
+| v1.x (T+1 mois)
+| Top 5 par population : **DE, IT, ES, PL, RO**
+| ~85 % natif
+
+| 3
+| v2 (T+3 mois)
+| Reste de l'Europe centrale et continentale : **NL, EL, PT, HU, CS, SV, BG, DA, FI, SK**
+| ~98 % natif
+
+| 4
+| v2.x (T+6 mois)
+| Petites langues UE : **HR, LT, SL, LV, ET, GA, MT**
+| 100 % UE
+
+| 5 *(à évaluer)*
+| ouvert
+| Hors UE : NO, IS, RU, UK, TR — selon traction & contributions
+| —
+|===
+
+==== Processus de traduction
+
+* **Source de vérité** : un fichier YAML par langue (par ex.
+  `locales/fr.yml`, `locales/de.yml`...), géré via le module i18n
+  Marten.
+* **Premier jet** : DeepL (excellent sur les langues européennes
+  occidentales) ou similaire pour produire un brouillon.
+* **Validation** : relecture par un locuteur natif avant
+  activation. Tant qu'une langue n'est pas relue, elle reste en
+  « beta » (badge visible dans le sélecteur).
+* **Contributions externes** : page `/about` mentionne « Vous parlez
+  cette langue ? Aidez-nous à améliorer la traduction » avec lien
+  vers le repo (issue ou PR sur le fichier YAML).
+* **Sélecteur de langue** : drapeau + nom natif (« Deutsch »,
+  « Italiano »…) plutôt que codes ISO. Persistance via cookie
+  + `Accept-Language` HTTP en fallback initial.
+* **Aucune langue activée tant que sa traduction n'est pas relue
+  par un humain** — protège la qualité perçue (vitrine ALOLI).
 
 === B — Application desktop native (macOS / Linux / Windows)
 
