@@ -93,8 +93,22 @@ Aloli — pas un projet jouet).
 
 === A — Application web gratuite (vitrine ALOLI)
 
-🔵 — initiative stratégique. Effort estimé : **L à XL** (1-2 sem.
-selon polish).
+🔵 — initiative stratégique. **Lancement prévu mi-mai 2026.**
+Effort estimé : **L à XL** (1-2 sem. selon polish).
+
+==== Identité retenue
+
+* **Nom : alolipdf**
+* **Domaine : `alolipdf.app`** *(TLD `.app` opéré par Google, HTTPS
+  forcé via préchargement HSTS — cohérent avec la nature
+  application web et avec une cible internationale).*
+* **Multilingue dès la v1** — c'est un argument de la décision : le
+  service vise une audience au-delà du francophone, le `.app` neutre
+  est plus adapté qu'un `.fr`.
+* **Double rôle** : utilisation en ligne **+** page de
+  téléchargement de l'application desktop (chantier B). Une seule
+  marque, une seule URL, deux modes (online/offline) qui se renvoient
+  l'un à l'autre.
 
 ==== Cible
 
@@ -104,8 +118,8 @@ selon polish).
 * Aussi un banc de test pour combine-pdf en conditions réelles avec
   des PDFs variés (Word, LibreOffice, scans, exports web).
 * **Vitrine ALOLI** : démontrer la stack complète (Crystal + Marten
-  + HTMX + Bulma + déploiement Aloli) sur une app utile, pas un
-  exemple jouet. Sert de référence dans les démarches commerciales.
+  + HTMX + Bulma + Opal + déploiement Aloli) sur une app utile, pas
+  un exemple jouet. Sert de référence dans les démarches commerciales.
 
 ==== Stack envisagée
 
@@ -113,45 +127,54 @@ selon polish).
 |===
 | Layer | Tech
 
-| Backend       | **Marten** (framework Crystal Aloli-friendly). Dépendance directe sur `crystal-combine-pdf` et `aloli-crystal/ghostscript`.
-| Frontend      | HTMX + Bulma (CSS framework pratique pour MVP). Pas de SPA — progressive enhancement uniquement.
-| File upload   | Multipart standard, taille max ~50 Mo, stockage éphémère (`/tmp/<uuid>/`, purge à T+24 h via cron).
-| Queue         | Synchrone via `Process.run` tant que les jobs restent < 30 s ; passer à un worker dédié si la latence devient un problème.
-| Auth          | Aucune en v1 (anonyme, lien éphémère pour télécharger). Identité Aloli optionnelle plus tard.
-| Déploiement   | `aloli-crystal/deploy` sur serveur Aloli. Domaine dédié (cf. propositions de noms).
+| Backend          | **Marten** (framework Crystal Aloli-friendly). Dépendance directe sur `crystal-combine-pdf` et `aloli-crystal/ghostscript`.
+| Templates serveur | Templates Marten + HTMX pour les interactions I/O (upload, polling de job, téléchargement).
+| Client-side rich  | **Opal** (Ruby → JS) pour drag-drop, validation immédiate des fichiers, thumbnails, détection auto de l'OS sur la page Download. `aloli-crystal/deploy --opal-assets` gère déjà la compilation.
+| Styling          | **Bulma**. CSS framework pragmatique, pas de processus de build lourd, mode dark prêt.
+| i18n             | Module Marten i18n natif. **FR + EN dès la v1**, autres langues activables au fil des contributions (mécanisme léger : un fichier YAML par langue).
+| File upload      | Multipart standard, taille max ~50 Mo, stockage éphémère (`/tmp/<uuid>/`, purge à T+24 h via cron).
+| Queue            | Synchrone via `Process.run` tant que les jobs restent < 30 s ; passer à un worker dédié si la latence devient un problème.
+| Auth             | Aucune en v1 (anonyme, lien éphémère pour télécharger). Identité Aloli optionnelle plus tard via `aloli-crystal/saml` ou `aloli-crystal/kemal-auth`.
+| Déploiement      | `aloli-crystal/deploy` sur serveur Aloli. Workflow déjà rodé pour Marten + Opal.
 |===
+
+==== HTMX vs Opal — répartition
+
+Côté serveur (HTMX) : upload multipart, soumission du formulaire
+(profil, options), polling du status, téléchargement, listing des
+releases desktop (page Download), bascule de langue.
+
+Côté client (Opal) : drag-drop visuel pour réordonner la liste de
+PDFs, calcul live de la taille estimée de la sortie, thumbnails de
+première page (PDF.js wrappé), détection auto-magique de l'OS du
+visiteur sur `/download` pour proposer le bon installeur en haut.
+
+==== Routes / pages prévues
+
+* **`/`** — page d'accueil, démo intégrée (drag-drop PDFs).
+* **`/app`** — application complète (upload, profil, deep, lien
+  éphémère).
+* **`/download`** — page de téléchargement de l'application desktop
+  (chantier B). Détection auto OS pour mettre l'installeur adéquat
+  en haut.
+* **`/about`** — vitrine ALOLI : stack utilisée, autres shards de
+  l'écosystème, contact pro.
 
 ==== Fonctionnalités v1
 
-* Upload de N PDFs avec drag-drop pour réordonner.
+* Upload de N PDFs avec drag-drop pour réordonner (Opal).
 * Choix du profil (`booklet` / `book` / `report` / `slides` / `minimal`).
 * Toggle « compression profonde » (case → `--deep`).
 * Lien de téléchargement éphémère (purge à T+24 h).
 * Aperçu de la première page + nombre de pages estimé.
+* Bascule de langue FR / EN visible dans l'en-tête.
 * En-tête « Powered by Aloli » avec lien vers le site corp.
+* Page `/download` avec installeurs desktop + détection OS.
 
 ==== Hors-périmètre v1
 
 Comptes utilisateurs, historique persistant, OCR, édition
 page-par-page (réordonner / supprimer / scinder), signatures.
-
-==== Noms candidats
-
-À arbitrer par Philippe.
-
-[cols="2,3,3"]
-|===
-| Candidat | Forces | Faiblesses
-
-| `livretmix.app`     | Français, évoque le livret + le mix.       | Connote l'usage musical / liturgique.
-| `pdfblend.app`      | Court, anglais, neutre.                     | À vérifier qu'il n'est pas pris.
-| `mergly.app`        | Court, mémorisable.                         | Générique.
-| `papierie.aloli.fr` | Français pittoresque (« papierie »).        | Sous-domaine, moins distinctif.
-| `assemble-pdf.app`  | Descriptif, sans ambiguïté.                 | Long.
-| `pdf.aloli.fr`      | Sous-domaine groupe, simple.                | Trop générique sur la marque.
-| `zinemix.app`       | « zine » évoque le livret/fanzine.          | Jargon.
-| `livret.app`        | Court, français, métier.                    | Possiblement déjà pris.
-|===
 
 === B — Application desktop native (macOS / Linux / Windows)
 
