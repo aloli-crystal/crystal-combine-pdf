@@ -98,7 +98,7 @@ Effort estimé : **L à XL** (1-2 sem. selon polish).
 
 ==== Identité retenue
 
-* **Nom : alolipdf**
+* **Nom : alolipdf** (gratuit) + **alolipdf Pro** (payant).
 * **Domaine : `alolipdf.app`** *(TLD `.app` opéré par Google, HTTPS
   forcé via préchargement HSTS — cohérent avec la nature
   application web et avec une cible internationale).*
@@ -109,6 +109,10 @@ Effort estimé : **L à XL** (1-2 sem. selon polish).
   téléchargement de l'application desktop (chantier B). Une seule
   marque, une seule URL, deux modes (online/offline) qui se renvoient
   l'un à l'autre.
+* **Modèle freemium** : la version gratuite reste utile pour le
+  livret occasionnel (jusqu'à 7 pages, filigrane visible) ; la
+  version Pro libère les contraintes pour l'usage professionnel ou
+  régulier. Cf. section « alolipdf vs alolipdf Pro ».
 
 ==== Cible
 
@@ -197,6 +201,113 @@ Conséquences concrètes sur la conception v1 :
 Comptes utilisateurs, historique persistant, OCR, édition
 page-par-page (réordonner / supprimer / scinder), signatures, envoi
 par e-mail du lien, partage social.
+
+==== alolipdf vs alolipdf Pro
+
+Décision Philippe (2026-05-03) : modèle freemium. Free reste utile,
+Pro lève les contraintes — pas de fonctionnalité « interdite », juste
+des limites.
+
+[cols="2,3,3"]
+|===
+| Capacité | alolipdf (gratuit) | alolipdf Pro (payant)
+
+| Pages dans le PDF de sortie
+| **Max 7 pages**
+| **Illimité** *(ou plafond très haut, p.ex. 500)*
+
+| Filigrane sur la sortie
+| **Oui**, discret en bas (« Generated with alolipdf — alolipdf.app »), via `aloli-crystal/watermark`
+| **Aucun**
+
+| Profils
+| Tous les 5 profils (`booklet` / `book` / `report` / `slides` / `minimal`)
+| Idem
+
+| Compression profonde (`--deep`)
+| Disponible
+| Disponible *(à arbitrer : peut-être réservée à Pro pour limiter l'empreinte gs côté serveur)*
+
+| Lien éphémère
+| 10 minutes
+| 10 minutes *(décision anti-abus universelle, pas une carotte Pro)*
+
+| Compte / login
+| Aucun
+| Compte e-mail + mot de passe ou magic link
+
+| Quota
+| Pas de quota strict ; rate-limit doux par IP
+| Selon le plan (cf. pricing)
+
+| Priorité de traitement
+| Best effort
+| File prioritaire dès qu'on aura un worker dédié
+
+| Support
+| README + issues GitHub
+| E-mail de support (réponse sous 48 h ouvrées)
+|===
+
+==== Pricing — propositions à arbitrer
+
+Trois pistes, à choisir selon le ton commercial souhaité :
+
+[cols="2,3,3"]
+|===
+| Modèle | Tarifs candidats | Pour qui
+
+| **Abonnement mensuel / annuel**
+| **4,99 €/mois** ou **49 €/an** *(2 mois offerts)*
+| Usage régulier, ratio prix/valeur sain. Modèle dominant chez les concurrents (Smallpdf 9 €/mois, iLovePDF 4 €/mois). Génère du récurrent — bon pour le P&L.
+
+| **Pass à durée limitée**
+| **9,99 €** = 30 jours Pro
+| Usage ponctuel intense (livret de mariage, dossier scolaire…). Sans engagement, achat impulsif. Bon complément à l'abonnement.
+
+| **One-shot par fichier**
+| **0,99 €** par PDF généré sans limite ni filigrane
+| Achat très bas, pas de friction. Mais comptabilité plus lourde (Stripe metering).
+|===
+
+**Recommandation pour démarrer** : abonnement annuel **49 €/an**
++ pass mensuel **4,99 €/mois** (= deux faces de la même offre,
+permet à l'utilisateur d'essayer 1 mois avant de s'engager). Le
+one-shot peut venir plus tard si la traction le justifie.
+
+Stack paiement candidate :
+* **Stripe** — incontournable, cartes + SEPA, gestion abonnements
+  native. Frais ~1,5 %+0,25 € par tx (CB UE).
+* **Mollie** — alternative européenne, frais similaires, support
+  Bancontact/iDEAL/Klarna utile pour les marchés DE/NL/BE/AT.
+
+==== Phasage v1 → v2
+
+Le modèle freemium *n'est pas* dans le périmètre de la v1 mi-mai.
+v1 ouvre alolipdf gratuit avec contraintes (limite 7 pages +
+filigrane) — ce qui rend Pro significatif quand il arrivera. v2
+ajoute Pro.
+
+[cols="1,3,3"]
+|===
+| Version | Périmètre | Composants techniques
+
+| **v1 (mi-mai)**
+| alolipdf gratuit. 7 pages + filigrane. Multilingue FR + EN. Page Download. Vitrine /about.
+| Marten + HTMX + Opal + Bulma + `aloli-crystal/watermark`. Pas de DB.
+
+| **v1.x**
+| Phase 2 multilingue (DE, IT, ES, PL, RO).
+| Ajout des fichiers `locales/*.yml`.
+
+| **v2**
+| alolipdf Pro : compte, paiement, levée des limites.
+| Ajout DB (PostgreSQL via Marten ORM), Stripe ou Mollie, `aloli-crystal/kemal-auth` ou Marten auth, e-mail transactionnel.
+
+| **v2.x**
+| Affinage : pass mensuel, one-shot, factures, reçus.
+| Stripe Customer Portal + factures via le moteur PDF qu'on a déjà sous la main.
+|===
 
 ==== Stratégie multilingue
 
