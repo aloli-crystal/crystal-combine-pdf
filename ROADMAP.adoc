@@ -132,7 +132,7 @@ Effort estimé : **L à XL** (1-2 sem. selon polish).
 | Client-side rich  | **Opal** (Ruby → JS) pour drag-drop, validation immédiate des fichiers, thumbnails, détection auto de l'OS sur la page Download. `aloli-crystal/deploy --opal-assets` gère déjà la compilation.
 | Styling          | **Bulma**. CSS framework pragmatique, pas de processus de build lourd, mode dark prêt.
 | i18n             | Module Marten i18n natif. **FR + EN dès la v1**, autres langues activables au fil des contributions (mécanisme léger : un fichier YAML par langue).
-| File upload      | Multipart standard, taille max ~50 Mo, stockage éphémère (`/tmp/<uuid>/`, purge à T+24 h via cron).
+| File upload      | Multipart standard, taille max ~50 Mo, stockage éphémère (`/tmp/<uuid>/`, purge **à T+10 min** via cron). Cf. note « Pas un service de transfert ».
 | Queue            | Synchrone via `Process.run` tant que les jobs restent < 30 s ; passer à un worker dédié si la latence devient un problème.
 | Auth             | Aucune en v1 (anonyme, lien éphémère pour télécharger). Identité Aloli optionnelle plus tard via `aloli-crystal/saml` ou `aloli-crystal/kemal-auth`.
 | Déploiement      | `aloli-crystal/deploy` sur serveur Aloli. Workflow déjà rodé pour Marten + Opal.
@@ -165,16 +165,38 @@ visiteur sur `/download` pour proposer le bon installeur en haut.
 * Upload de N PDFs avec drag-drop pour réordonner (Opal).
 * Choix du profil (`booklet` / `book` / `report` / `slides` / `minimal`).
 * Toggle « compression profonde » (case → `--deep`).
-* Lien de téléchargement éphémère (purge à T+24 h).
+* Lien de téléchargement éphémère (purge **à T+10 min**).
 * Aperçu de la première page + nombre de pages estimé.
 * Bascule de langue FR / EN visible dans l'en-tête.
 * En-tête « Powered by Aloli » avec lien vers le site corp.
 * Page `/download` avec installeurs desktop + détection OS.
 
+==== Pas un service de transfert (anti-abus)
+
+Décision Philippe (2026-05-03) : la durée du lien éphémère est
+volontairement très courte — **10 minutes**. Ce n'est *pas* un
+service à la `wetransfer` ni à la `transfer.sh`, et ALOLI n'a pas
+vocation à servir de relais pour s'envoyer des PDFs entre tiers.
+
+Conséquences concrètes sur la conception v1 :
+
+* Aucune fonction « envoyer le lien par e-mail ».
+* Aucune URL parlante / mémorisable du résultat (juste un UUID).
+* `Cache-Control: private, no-store` + `X-Robots-Tag: noindex` sur
+  la page de téléchargement (un lien partagé par accident ne
+  pollue pas Google).
+* Le job de purge tourne toutes les minutes (`/tmp/<uuid>/` plus
+  vieux que 10 minutes → suppression immédiate).
+* Limite raisonnable de fichiers concurrents par IP pour éviter le
+  squatting de stockage.
+* Si l'utilisateur rate sa fenêtre, il re-upload — friction
+  intentionnelle, pas un bug.
+
 ==== Hors-périmètre v1
 
 Comptes utilisateurs, historique persistant, OCR, édition
-page-par-page (réordonner / supprimer / scinder), signatures.
+page-par-page (réordonner / supprimer / scinder), signatures, envoi
+par e-mail du lien, partage social.
 
 === B — Application desktop native (macOS / Linux / Windows)
 
