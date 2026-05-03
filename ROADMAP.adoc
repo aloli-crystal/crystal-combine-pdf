@@ -657,52 +657,67 @@ impacte fortement la conception. À budgéter dès le départ :
 
 ==== Phasage de la sortie desktop
 
-Décision Philippe (2026-05-03) : **store-first**. Observation
+Décision Philippe (2026-05-03, raffinée) : **stores =
+condition de l'adoption, pas de la mise au monde**. Observation
 client B2B : sans présence en store, l'app ne sera pas installée
-— les utilisateurs vont au plus facile et associent les stores à
-une « garantie de sécurité ». Le téléchargement direct n'a de
-sens que comme **fallback** pour les contextes IT-restreints
-(entreprises qui bloquent les stores, audits de sécurité internes).
+*à grande échelle* — les utilisateurs vont au plus facile et
+associent les stores à une « garantie de sécurité ». Mais une
+phase pilote en téléchargement direct peut servir à valider la
+conception avant l'investissement des reviews/signatures stores
+(qui sont longues et coûteuses en effort).
 
-Conséquence sur la conception : on **n'expose pas une beta direct
-download** avant la review store. La présence en store est la
-v1 desktop, pas un bonus tardif. Soit on lance avec, soit on
-ne lance pas.
+Pragmatisme : ne pas se condamner à attendre les 3 stores ouverts
+en même temps si une beta direct-download nous fait gagner 1 mois
+de feedback. **Mais** ne pas se mentir : le direct-download seul
+ne portera pas la traction.
 
 [cols="1,3"]
 |===
 | Étape | Contenu
 
-| Pré-soumission (T-1 sem. avant publication)
-| App fonctionnelle, signée, notarisée, testée. Compte Apple
+| **Phase 1 — pilote (T+0)** *optionnelle*
+| Téléchargement direct depuis `alolipdf.app/download` : `.dmg`
+  macOS signé/notarisé, `.AppImage` Linux, `.zip`/`.msi` Windows
+  signé. Permet de valider la conception et de récolter du retour
+  utilisateur avant la review store. **Public clairement averti
+  qu'il s'agit d'une beta technique** ; on ne pousse pas dessus
+  côté SEO/marketing.
+
+| **Phase 2 — pré-soumission stores (T+2 à 4 sem.)**
+| App stabilisée d'après les retours pilote. Compte Apple
   Developer / Microsoft Partner / Flathub maintainer en place.
-  Screenshots, vidéos, descriptions traduites prêts. Soumission aux
-  3 stores **simultanée** pour amortir la fenêtre de review.
+  Screenshots, vidéos, descriptions traduites prêts. Soumission
+  aux 3 stores **simultanée** pour amortir la fenêtre de review.
 
-| v1 desktop publique (T+0)
-| **Mac App Store** + **Microsoft Store** + **Flathub** ouverts en
-  même temps. C'est *ça* qui compte côté image — pas un parcours
-  où Apple sort 3 semaines avant Windows. Mieux vaut décaler le
-  lancement de 1-2 semaines pour avoir les 3 stores prêts.
+| **Phase 3 — sortie publique stores (T+1 à 2 mois)**
+| **Mac App Store** + **Microsoft Store** + **Flathub** ouverts
+  en même temps. *C'est* le vrai lancement — celui qui compte
+  côté image et adoption. Communication, page d'accueil
+  alolipdf.app, blog post, mailing.
 
-| v1.x (T+2 sem.)
-| Téléchargement direct sur `alolipdf.app/download` : `.dmg`
-  macOS, `.AppImage` Linux, `.msi` Windows. **Présenté comme
-  fallback** pour les contextes restreints. Les boutons store
-  restent en haut de la page, la mention « Téléchargement direct
-  pour l'IT d'entreprise » est en dessous, plus discrète.
-
-| v1.y (T+1 mois)
-| **Snap Store** + Homebrew tap `aloli/tap` (macOS power-users) +
-  packages natifs `.deb` / `.rpm` (selon traction Linux observée
-  via Flathub).
+| **Phase 4 — couverture (T+3 mois)**
+| **Snap Store** + Homebrew tap `aloli/tap` (macOS power-users)
+  + packages natifs `.deb` / `.rpm` (selon traction Linux
+  observée via Flathub).
 |===
 
-L'option « lancer Mac d'abord » est rejetée : elle donne une
-mauvaise image (« app uniquement Mac à l'origine, Windows
-ajouté plus tard ») même si techniquement plus simple. On
-préfère retarder le lancement et avoir une couverture
-plate-forme cohérente dès le jour 1.
+Position de la page `/download` selon la phase :
+
+* **Phase 1** : page sobre « beta technique disponible » avec
+  liens directs en évidence.
+* **Phase 3** : badges des stores en très haut, gros et cliquables.
+  Liens directs déplacés en dessous, sous une mention « pour les
+  environnements IT restreints qui bloquent les stores ».
+* L'enjeu est de **ne pas décourager les utilisateurs grand
+  public** une fois en stores — il faut qu'à la phase 3 le
+  premier réflexe soit le bouton store, pas le téléchargement
+  direct.
+
+L'option « lancer Mac App Store d'abord et les autres plus tard »
+reste rejetée pour la phase 3 : elle donne une mauvaise image
+côté Windows / Linux. La phase 1 (pilote direct) peut très bien
+ne couvrir qu'un seul OS au départ — c'est différent puisque c'est
+explicitement une beta.
 
 ==== Hors-périmètre v1
 
