@@ -1,0 +1,264 @@
+= Roadmap — crystal-combine-pdf
+:toc: left
+:toclevels: 2
+
+État au 2026-05-03 : v1.0.31.23 publiée. Couverture API stable
+(`merge`, `number`, `assemble`, `compress`), build déclaratif via
+`.crystal-combine-pdf.yml`, 5 profils à l'`init`, config user
+globale, compression profonde via `aloli-crystal/ghostscript`.
+89 specs verts, ameba clean.
+
+Cette roadmap décrit les chantiers identifiés pour les itérations
+suivantes — ordre indicatif, à arbitrer au fil des retours
+utilisateurs.
+
+== Légende
+
+[cols="1,3"]
+|===
+| Sigle | Sens
+
+| 🔵 | Stratégique — initiative business / écosystème.
+| 🟢 | Évolution naturelle du shard.
+| 🔴 | Critique — bloque un usage courant.
+| 🟠 | Important — fonctionnalité courante, contournable.
+| 🟡 | Cosmétique — rarement utilisé, faible impact.
+| S | Effort < 1 j
+| M | Effort 1-2 j
+| L | Effort 3-5 j
+| XL | Effort > 1 semaine
+|===
+
+== Court terme — évolutions du shard
+
+[cols="3,1,1,5"]
+|===
+| Item | Sév. | Effort | Description
+
+| **Déduplication des ressources au `merge`**
+| 🟢
+| M
+| Aujourd'hui, fusionner N PDFs qui partagent la même police
+  l'embarque N fois. Identifier les objets dupliqués (hash du
+  contenu sérialisé) et fusionner avant l'écriture. Bénéfice
+  taille de l'ordre de 10-30 % sur des livrets typiques.
+
+| **`insert(location, data)` / `remove(page_index)`**
+| 🟢
+| S chacun
+| Édition fine d'un PDF existant : ajouter une page de garde, un
+  intercalaire, retirer une page blanche d'une partition importée.
+  Une fois la fusion en place, le coût marginal est faible.
+
+| **Lecture de PDF chiffrés** (RC4 v1/v2, AES-128, AES-256)
+| 🟠
+| L
+| Permettre `merge`/`compress` sur des entrées chiffrées (cas
+  fréquent : factures PDF protégées par mot de passe).
+
+| **Écriture de PDF chiffrés** (mot de passe owner + user, niveau
+  de permissions)
+| 🟠
+| L
+| Sortie protégée — utile ISO 27001. Référence à
+  `aloli-crystal/secrets` pour stocker les mots de passe.
+
+| **Signatures PAdES** (PDF Advanced Electronic Signatures)
+| 🟠
+| XL
+| Cert X.509, horodatage TSA, révocation OCSP. Nécessite d'étendre
+  d'abord `aloli-crystal/jose` côté CMS/PKCS#7.
+
+| **Compatibilité combine_pdf : `stamp_pages`, `create_table`**
+| 🟡
+| M chacun
+| Items du Top 10 de l'audit
+  link:../AUDIT-combine_pdf-vs-crystal-combine-pdf.adoc[`AUDIT-...`]
+  non encore couverts.
+
+| **Options manquantes de `number_pages`**
+| 🟡
+| M
+| `start_at`, `font_name`, encadré coloré, `opacity`, numérotation
+  Bates, positions multiples par page.
+|===
+
+== Long terme — applications dérivées
+
+Deux chantiers stratégiques décidés le 2026-05-03 : porter
+combine-pdf au-delà du public Crystal/CLI pour atteindre le grand
+public, **et servir de vitrine technologique de la société ALOLI**
+(démonstrateur public de la qualité de production de l'écosystème
+Aloli — pas un projet jouet).
+
+=== A — Application web gratuite (vitrine ALOLI)
+
+🔵 — initiative stratégique. Effort estimé : **L à XL** (1-2 sem.
+selon polish).
+
+==== Cible
+
+* Particuliers / associations qui n'ont pas envie d'installer
+  Crystal ni Ghostscript ni de toucher à une CLI : livret de messe,
+  livret de mariage, programme de concert, dossier scolaire combiné.
+* Aussi un banc de test pour combine-pdf en conditions réelles avec
+  des PDFs variés (Word, LibreOffice, scans, exports web).
+* **Vitrine ALOLI** : démontrer la stack complète (Crystal + Marten
+  + HTMX + Bulma + déploiement Aloli) sur une app utile, pas un
+  exemple jouet. Sert de référence dans les démarches commerciales.
+
+==== Stack envisagée
+
+[cols="1,3"]
+|===
+| Layer | Tech
+
+| Backend       | **Marten** (framework Crystal Aloli-friendly). Dépendance directe sur `crystal-combine-pdf` et `aloli-crystal/ghostscript`.
+| Frontend      | HTMX + Bulma (CSS framework pratique pour MVP). Pas de SPA — progressive enhancement uniquement.
+| File upload   | Multipart standard, taille max ~50 Mo, stockage éphémère (`/tmp/<uuid>/`, purge à T+24 h via cron).
+| Queue         | Synchrone via `Process.run` tant que les jobs restent < 30 s ; passer à un worker dédié si la latence devient un problème.
+| Auth          | Aucune en v1 (anonyme, lien éphémère pour télécharger). Identité Aloli optionnelle plus tard.
+| Déploiement   | `aloli-crystal/deploy` sur serveur Aloli. Domaine dédié (cf. propositions de noms).
+|===
+
+==== Fonctionnalités v1
+
+* Upload de N PDFs avec drag-drop pour réordonner.
+* Choix du profil (`booklet` / `book` / `report` / `slides` / `minimal`).
+* Toggle « compression profonde » (case → `--deep`).
+* Lien de téléchargement éphémère (purge à T+24 h).
+* Aperçu de la première page + nombre de pages estimé.
+* En-tête « Powered by Aloli » avec lien vers le site corp.
+
+==== Hors-périmètre v1
+
+Comptes utilisateurs, historique persistant, OCR, édition
+page-par-page (réordonner / supprimer / scinder), signatures.
+
+==== Noms candidats
+
+À arbitrer par Philippe.
+
+[cols="2,3,3"]
+|===
+| Candidat | Forces | Faiblesses
+
+| `livretmix.app`     | Français, évoque le livret + le mix.       | Connote l'usage musical / liturgique.
+| `pdfblend.app`      | Court, anglais, neutre.                     | À vérifier qu'il n'est pas pris.
+| `mergly.app`        | Court, mémorisable.                         | Générique.
+| `papierie.aloli.fr` | Français pittoresque (« papierie »).        | Sous-domaine, moins distinctif.
+| `assemble-pdf.app`  | Descriptif, sans ambiguïté.                 | Long.
+| `pdf.aloli.fr`      | Sous-domaine groupe, simple.                | Trop générique sur la marque.
+| `zinemix.app`       | « zine » évoque le livret/fanzine.          | Jargon.
+| `livret.app`        | Court, français, métier.                    | Possiblement déjà pris.
+|===
+
+=== B — Application desktop native (macOS / Linux / Windows)
+
+🔵 — initiative stratégique. Effort estimé : **XL** (3-4 sem.
+cumulées sur les trois OS, signature/notarisation incluse).
+
+==== Cible
+
+* Grand public qui n'ouvre pas de terminal.
+* Workflows répétitifs (préparation hebdomadaire d'un livret
+  liturgique : sélection multi-fichiers + clic droit dans le
+  Finder/Explorateur).
+* L'intégration au menu contextuel du gestionnaire de fichiers est
+  **le cœur de la valeur** — c'est ce qui rend l'outil invisible et
+  utilisable par n'importe qui.
+
+==== Architecture
+
+[cols="1,3"]
+|===
+| Layer | Tech
+
+| Logique métier      | Le binaire `crystal-combine-pdf` lui-même, invoqué par l'UI via `Process.run`.
+| UI macOS            | Native AppKit — réutilise `aloli-crystal/appkit` qu'on a déjà.
+| UI Linux            | À étudier : GTK4 via FFI (natif, lourd) **ou** approche Tauri-like (UI HTML+JS dans une webview système, backend Crystal).
+| UI Windows          | Tauri-like probablement le plus simple si on veut une UI partagée avec Linux.
+| Service Finder/Explorer | Plate-forme spécifique (cf. tableau ci-dessous).
+|===
+
+==== Intégration au menu contextuel — la pièce maîtresse
+
+[cols="1,3,1"]
+|===
+| OS | Mécanisme | Effort
+
+| macOS
+| Service / Quick Action via Automator + binaire CLI. Distribué
+  dans `/Library/Services/`.
+| S — wrapper autour de la CLI existante.
+
+| Linux KDE
+| Service menu (`~/.local/share/kio/servicemenus/*.desktop`).
+| S
+
+| Linux GNOME
+| Nautilus action via `nautilus-python` ou un script
+  `~/.local/share/nautilus/scripts/`.
+| S
+
+| Linux autres
+| Idem, fichier `.desktop` adapté au DE.
+| S par environnement
+
+| Windows
+| Shell extension (DLL C++) **ou** « Send to » via le registre.
+  La voie « Send to » est S, la DLL propre est XL.
+| S à XL
+|===
+
+==== Fonctionnalités v1
+
+* Sélection de N PDFs depuis le Finder/Explorateur, clic droit →
+  *« Combiner les PDFs (Aloli) »*.
+* Boîte de dialogue minimale : ordre des fichiers + profil + bouton
+  *« Compression profonde »*.
+* Sortie écrite dans le même dossier, nom dérivé du dossier.
+* Notification système au succès / échec.
+
+==== Distribution
+
+[cols="1,3"]
+|===
+| OS | Cible
+
+| macOS   | `.pkg` notarisé, ou Homebrew tap `aloli/tap`.
+| Linux   | Packages `.deb` / `.rpm` ou un `AppImage`.
+| Windows | MSI ou portable `.zip`.
+| CI      | `aloli-crystal/deploy` ne couvre pas le packaging desktop — workflow GitHub Actions par OS à monter.
+|===
+
+==== Hors-périmètre v1
+
+Édition page-par-page (zone graphique de tri/suppression), aperçu
+PDF intégré, signature numérique.
+
+== Ordre suggéré
+
+1. **Optimisations** — déduplication ressources, `insert`/`remove`
+   *(évolution naturelle ; donne un shard plus complet pour les
+   apps dérivées)*.
+2. **🔵 Application web v1** — la plus rapide à mettre debout, donne
+   du retour utilisateur immédiat, sert immédiatement de vitrine
+   ALOLI.
+3. **Sécurité** — lecture/écriture de PDF chiffrés *(utile ISO 27001
+   et pour les cas pro de la web app)*.
+4. **🔵 Application desktop v1** — plus lourd, plus de plates-formes
+   à valider, mais la valeur du clic-droit est unique.
+5. **Signatures PAdES** *(long terme, dépend de l'évolution de
+   `aloli-crystal/jose`)*.
+
+== Sources
+
+* Audit complet :
+  link:../AUDIT-combine_pdf-vs-crystal-combine-pdf.adoc[AUDIT...]
+* Repo : https://github.com/aloli-crystal/crystal-combine-pdf
+* Gem upstream : https://github.com/boazsegev/combine_pdf (v0.1.6,
+  non maintenu — opportunité de prendre la place côté écosystème).
+* Shards-frères : `aloli-crystal/ghostscript` (compress deep),
+  `aloli-crystal/appkit` (UI macOS), `aloli-crystal/deploy`
+  (déploiement web app).
