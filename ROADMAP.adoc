@@ -438,14 +438,95 @@ cumulées sur les trois OS, signature/notarisation incluse).
 
 ==== Distribution
 
+Décision Philippe (2026-05-03) : **publier dans les stores
+plate-formes** en plus du téléchargement direct depuis
+`alolipdf.app/download`. Pour atteindre le grand public, la
+présence dans les stores est non négociable — c'est là que les
+gens cherchent une « app PDF » par défaut.
+
+[cols="1,2,4"]
+|===
+| OS | Store principal | Notes
+
+| **macOS**
+| Mac App Store
+| Apple Developer Program à 99 USD/an. Sandbox obligatoire
+  (entitlements `com.apple.security.files.user-selected.read-write`
+  pour l'accès Finder). Notarisation Apple incluse. Process de
+  review (typiquement 24-72 h). Direct download `.dmg` / Homebrew
+  tap `aloli/tap` en parallèle pour les utilisateurs hors store.
+
+| **Windows**
+| Microsoft Store
+| Microsoft Partner Center à 19 USD (one-shot pour individu) ou
+  99 USD pour une société. Format **MSIX** (signature
+  `App Identity` requise). Direct download MSI/portable `.zip` en
+  parallèle.
+
+| **Linux**
+| **Flathub** (recommandé) + **Snap Store**
+| Flathub gratuit, format Flatpak — couvre la majorité des distros
+  modernes (Fedora, Ubuntu, Arch via Flathub installé). Snap Store
+  gratuit, format Snap — cible Ubuntu en priorité. AppImage en
+  parallèle pour le téléchargement direct (zéro store, zéro
+  install). Packages `.deb`/`.rpm` natifs : nice-to-have, à
+  prioriser selon la traction par distro.
+|===
+
+==== Implications de la contrainte « stores »
+
+Présence en stores = sandboxing + revues + signatures, ce qui
+impacte fortement la conception. À budgéter dès le départ :
+
+* **Sandboxing macOS** : l'app ne peut accéder qu'aux fichiers
+  explicitement sélectionnés par l'utilisateur. Heureusement, le
+  cas d'usage « clic droit dans le Finder » entre exactement dans
+  ce cadre via les entitlements `user-selected`.
+* **Code signing** sur les 3 OS, dont notarisation Apple
+  (automatique via `xcrun notarytool` en CI). Coût récurrent
+  Developer Program inclus.
+* **Process de review** initial (long, 1-2 sem.) puis chaque update
+  (rapide ensuite, ~24-72 h). Préparer screenshots, descriptions
+  i18n, captures vidéo de fonctionnement.
+* **In-app purchase pour Pro** — sujet sensible :
+  ** Apple App Store : règle du 30 % sur les transactions
+     in-app. *Mais* DMA (UE, mars 2024) autorise les apps de l'UE
+     à pointer vers un paiement web externe. Stratégie : compte
+     Pro payé sur `alolipdf.app` + login dans l'app desktop, pas
+     d'IAP. Hors UE, à arbitrer (peut nécessiter d'activer IAP).
+  ** Microsoft Store : politique plus souple, IAP optionnel,
+     paiement externe accepté.
+  ** Flathub / Snap : aucune restriction de paiement.
+* **Updates** : gérées par les stores quand on passe par eux, à
+  monter soi-même pour les distributions directes (Sparkle pour
+  macOS direct, WiX pour Windows MSI, etc.).
+* **Effort total revu à la hausse** : XL → XXL (4-6 semaines
+  cumulées), dont ~1/3 pour l'app elle-même et ~2/3 pour le tooling
+  store/CI/signing.
+
+==== Phasage de la sortie desktop
+
 [cols="1,3"]
 |===
-| OS | Cible
+| Étape | Contenu
 
-| macOS   | `.pkg` notarisé, ou Homebrew tap `aloli/tap`.
-| Linux   | Packages `.deb` / `.rpm` ou un `AppImage`.
-| Windows | MSI ou portable `.zip`.
-| CI      | `aloli-crystal/deploy` ne couvre pas le packaging desktop — workflow GitHub Actions par OS à monter.
+| Beta (T+0)
+| Téléchargement direct depuis `/download` : `.dmg` macOS,
+  `.AppImage` Linux, `.zip` portable Windows. Tous signés mais pas
+  encore en store. Permet d'avoir une app fonctionnelle vite, sans
+  attendre la review.
+
+| v1 store (T+2 sem.)
+| **Mac App Store** d'abord (le plus structurant, sandbox/notarisation
+  donnent le ton). Direct macOS retiré ou laissé en parallèle.
+
+| v1.x (T+1 mois)
+| **Microsoft Store** + **Flathub**. Profite de l'expérience MAS
+  pour structurer les manifests et entitlements.
+
+| v1.y (T+2 mois)
+| **Snap Store** + packages natifs `.deb` / `.rpm` selon la
+  traction Linux observée.
 |===
 
 ==== Hors-périmètre v1
