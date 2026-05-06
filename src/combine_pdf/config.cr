@@ -33,6 +33,8 @@ module CombinePDF
     property toc : Toc?
     # Filigrane optionnel (texte semi-transparent en diagonale, etc.).
     property watermark : Watermark?
+    # Chiffrement du livret de sortie (mot de passe + permissions).
+    property encrypt : Encrypt?
     # Liste ordonnée des fichiers à assembler.
     property files : Array(FileEntry)
 
@@ -46,6 +48,7 @@ module CombinePDF
       @numbering : Numbering = Numbering.new,
       @toc : Toc? = nil,
       @watermark : Watermark? = nil,
+      @encrypt : Encrypt? = nil,
       @files : Array(FileEntry) = [] of FileEntry,
     )
     end
@@ -360,6 +363,68 @@ module CombinePDF
         @opacity : Float64 = 0.15,
         @rotation : Float64 = 45.0,
       )
+      end
+    end
+
+    # Chiffrement du livret de sortie. Activé quand la section
+    # `encrypt:` est présente dans le YAML, surchargeable par la CLI.
+    #
+    # Niveau :
+    # * `"rc4_128"`  RC4 128-bit (legacy, Acrobat ≥ 5)
+    # * `"aes_128"`  AES-128 + CryptFilter AESV2 (Acrobat ≥ 7)
+    # * `"aes_256"`  AES-256, PDF 2.0 (Acrobat ≥ X) — défaut
+    #
+    # Mots de passe :
+    # * `user_password` ouvre le PDF (vide = pas de mot de passe à l'ouverture).
+    # * `owner_password` lève les restrictions. Vide ou `nil` = égal à
+    #   `user_password`.
+    # * Les deux peuvent être surchargés en CLI (`--user-password`,
+    #   `--owner-password`) — on évite ainsi de stocker un mot de passe
+    #   en clair dans le YAML versionné.
+    #
+    # Permissions : tableau de cases autorisées. `nil` ou absent = tout
+    # est permis. Valeurs reconnues : `print`, `copy`, `modify`, `annotate`.
+    class Encrypt
+      property level : String
+      property user_password : String
+      property owner_password : String?
+      property permissions : Array(String)?
+      property encrypt_metadata : Bool
+
+      def initialize(
+        @level : String = "aes_256",
+        @user_password : String = "",
+        @owner_password : String? = nil,
+        @permissions : Array(String)? = nil,
+        @encrypt_metadata : Bool = true,
+      )
+      end
+
+      # Convertit la chaîne du YAML en symbol attendu par `pdf.encrypt`.
+      def level_symbol : Symbol
+        case @level.downcase
+        when "rc4_128", "rc4-128", "rc4" then :rc4_128
+        when "aes_128", "aes-128"        then :aes_128
+        when "aes_256", "aes-256", "aes" then :aes_256
+        else
+          raise "Niveau de chiffrement inconnu : #{@level.inspect} (attendu : rc4_128, aes_128, aes_256)"
+        end
+      end
+
+      # Convertit la liste de chaînes (`["print", "copy"]`) en tableau
+      # d'enum `PDF::Security::Permission`. Valeur par défaut quand
+      # `nil` : toutes les permissions accordées.
+      def permissions_for_pdf : Array(::PDF::Security::Permission)
+        names = @permissions || ["print", "copy", "modify", "annotate"]
+        names.compact_map do |name|
+          case name.to_s.downcase
+          when "print"    then ::PDF::Security::Permission::Print
+          when "copy"     then ::PDF::Security::Permission::Copy
+          when "modify"   then ::PDF::Security::Permission::Modify
+          when "annotate" then ::PDF::Security::Permission::Annotate
+          else                 nil
+          end
+        end
       end
     end
   end

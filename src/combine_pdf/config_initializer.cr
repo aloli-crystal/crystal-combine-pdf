@@ -283,6 +283,7 @@ module CombinePDF
         build_section_numbering(s, options)
         build_section_toc(s, options)
         build_section_watermark(s, options, folder_name)
+        build_section_encrypt(s, options)
       end
     end
 
@@ -580,6 +581,44 @@ module CombinePDF
 
           DEFAULT
       end
+    end
+
+    # ─── Section encrypt ──────────────────────────────────────────
+    # Toujours commentée par défaut : on ne veut PAS un livret chiffré
+    # par accident, et on ne veut surtout pas qu'`init` insère un mot
+    # de passe en clair dans un fichier potentiellement versionné.
+    private def build_section_encrypt(s : IO, _options : InitOptions) : Nil
+      s << <<-BLOCK
+        # ─── Chiffrement ──────────────────────────────────────────────
+        # Activez ce bloc pour produire un livret chiffré.
+        # `level` :
+        #   - aes_256 (défaut, PDF 2.0, Acrobat ≥ X)
+        #   - aes_128 (Acrobat ≥ 7)
+        #   - rc4_128 (legacy uniquement, RC4 cassé)
+        #
+        # Mots de passe :
+        #   - `user_password`  ouvre le PDF (vide = pas de mot de passe à
+        #                      l'ouverture, juste les restrictions activées)
+        #   - `owner_password` lève les restrictions ; vide = identique à
+        #                      `user_password`.
+        #
+        # Sécurité : pour ne PAS stocker de mot de passe en clair dans
+        # ce YAML versionné, laissez les champs vides ici et fournissez
+        # le mot de passe en CLI :
+        #   crystal-combine-pdf -u 'secret' -w 'owner-secret'
+        # Les flags CLI surchargent toujours les valeurs du YAML.
+        #
+        # Permissions (tableau de cases autorisées ; `nil` ou absent =
+        # tout autorisé) : print, copy, modify, annotate.
+        # encrypt:
+        #   enabled: true
+        #   level: aes_256
+        #   user_password: ""
+        #   owner_password: ""
+        #   permissions: [print, copy, modify, annotate]
+        #   encrypt_metadata: true
+
+        BLOCK
     end
 
     # Auteur par défaut : `git config user.name` ou chaîne vide.

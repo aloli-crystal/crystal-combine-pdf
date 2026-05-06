@@ -3,6 +3,95 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.29 — 2026-05-07
+
+**Chiffrement de la sortie : sous-commande `encrypt` + section `encrypt:`
+dans le YAML.** Permet de produire un livret protégé par mot de passe
+(RC4-128, AES-128 ou AES-256) sans dépendance externe, avec deux
+canaux de configuration (YAML pour la repeatabilité, CLI pour les
+secrets).
+
+=== Added
+
+* **Sous-commande `crystal-combine-pdf encrypt FICHIER.pdf`** —
+  chiffre un PDF arbitraire en place ou vers un fichier de sortie,
+  sans avoir besoin du YAML. Utile pour ajouter un mot de passe à un
+  PDF existant.
++
+[source]
+----
+crystal-combine-pdf encrypt rapport.pdf -u "secret" -l aes_256 -o protege.pdf
+crystal-combine-pdf encrypt rapport.pdf -u "secret" -i --backup
+----
+
+* **Section `encrypt:` dans `.crystal-combine-pdf.yml`** — applique
+  un chiffrement au livret produit par `build`. Tous les champs sont
+  optionnels :
++
+[source,yaml]
+----
+encrypt:
+  enabled: true                # par défaut quand la section existe
+  level: aes_256               # rc4_128 | aes_128 | aes_256
+  user_password: "secret"      # vide = pas de mot de passe à l'ouverture
+  owner_password: "owner"      # vide ou nil = identique à user_password
+  permissions: [print]         # défaut : tout autorisé
+  encrypt_metadata: true
+----
+
+* **Flags CLI pour surcharger le YAML** lors d'un `build` :
++
+--
+** `-l, --level=LEVEL` — niveau effectif (rc4_128 / aes_128 / aes_256)
+** `-u, --user-password=PWD` — utile pour ne PAS écrire le mot de
+   passe en clair dans un YAML versionné
+** `-w, --owner-password=PWD`
+** `--encrypt` — force l'activation même si le YAML n'a pas la section
+** `--no-encrypt` — désactive même si le YAML l'active (CI/CD,
+   debugging)
+--
+
+* **`init` génère désormais une section `encrypt:` commentée** avec
+  toute la documentation utile (recommandation de NE PAS stocker le
+  mot de passe en clair dans le YAML versionné).
+
+* **`CombinePDF::PDF#encrypt(...)`** API publique, miroir de
+  `pdf.encrypt(...)` du shard `pdf` :
++
+[source,crystal]
+----
+pdf = CombinePDF.load("input.pdf")
+pdf.encrypt(
+  user_password: "secret",
+  owner_password: "owner",
+  level: :aes_256,
+  permissions: [PDF::Security::Permission::Print],
+)
+pdf.save("encrypted.pdf")
+----
+
+* **`Config::Encrypt`** — modèle de données pour la section YAML,
+  avec `level_symbol` (mapping vers `pdf.encrypt`) et
+  `permissions_for_pdf` (chaînes → `PDF::Security::Permission`).
+
+=== Changed
+
+* Bump dépendance `aloli-crystal/pdf ~> 0.5.0` → `~> 0.5.1`.
+* `MergedDocumentWriter` accepte un `security_handler` et un
+  `file_id` ; quand fournis, ajoute /Encrypt à la liste d'objets
+  indirects et chiffre tous les autres streams + chaînes au moment
+  de l'écriture. /ID est inscrit dans le trailer (obligatoire avec
+  /Encrypt).
+* `Merger` expose `security_handler` et `file_id` comme `property`
+  pour permettre la configuration au-dessus de la couche
+  `CombinePDF::PDF`.
+
+=== Tests
+
+* 13 nouveaux specs (round-trip 3 niveaux × 2 chemins YAML/CLI,
+  override CLI, --no-encrypt, init génère section commentée).
+* Suite globale : 102 examples, 0 failure.
+
 == v1.0.31.28 — 2026-05-07
 
 **Lecture des PDFs chiffrés AES-128 et AES-256** — `pdf` v0.5.0

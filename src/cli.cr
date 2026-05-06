@@ -21,14 +21,22 @@ mode_init = false
 mode_refresh = false
 mode_compress = false
 mode_gs = false
+mode_encrypt = false
 recursive = false
 target_dir = "."
 
-# ─── Drapeaux du mode `compress` / `gs` ───────────────────────────
+# ─── Drapeaux du mode `compress` / `gs` / `encrypt` ───────────────
 compress_in_place = false
 compress_backup = false
 compress_deep = false
 compress_deep_quality : Symbol = :ebook
+
+# ─── Drapeaux de chiffrement (mode `encrypt` ET surcharge de build)
+encrypt_user_password : String? = nil
+encrypt_owner_password : String? = nil
+encrypt_level : String? = nil
+encrypt_force_off = false
+encrypt_force_on = false
 
 # ─── Config user (préférences globales pour `init`) ───────────────
 # Chargée AVANT le parsing CLI pour fixer le profil par défaut. Les
@@ -100,6 +108,13 @@ parser = OptionParser.new do |p|
         interne refuse un PDF mal formé (ex. PDF linéarisé Acrobat
         ancien avec stream zlib invalide). Court-circuite le parser
         Crystal et délègue tout à gs. Nécessite ghostscript installé.
+
+      crystal-combine-pdf encrypt FICHIER.pdf [-o SORTIE.pdf | -i]
+                          [-l LEVEL] [-u USER_PWD] [-w OWNER_PWD]
+        Chiffre un PDF (Standard Security Handler RC4-128, AES-128
+        ou AES-256). Pas besoin du YAML — on opère directement sur
+        le fichier passé en argument. Voir aussi la section `encrypt:`
+        du YAML pour chiffrer le livret produit par `build`.
 
     Sous-commandes historiques :
       number FICHIER                Numérote les pages d'un PDF existant
@@ -194,6 +209,24 @@ parser = OptionParser.new do |p|
   end
 
   p.separator ""
+  p.separator "Options pour `encrypt` (et surcharges de la section `encrypt:` du YAML lors d'un `build`) :"
+  p.on("-l LEVEL", "--level=LEVEL", "Niveau : rc4_128 | aes_128 | aes_256 (défaut : aes_256)") do |v|
+    encrypt_level = v
+  end
+  p.on("-u PWD", "--user-password=PWD", "Mot de passe utilisateur (vide = pas de password à l'ouverture)") do |v|
+    encrypt_user_password = v
+  end
+  p.on("-w PWD", "--owner-password=PWD", "Mot de passe owner (défaut : identique à user)") do |v|
+    encrypt_owner_password = v
+  end
+  p.on("--no-encrypt", "Lors d'un `build` : désactive le chiffrement même si présent dans le YAML") do
+    encrypt_force_off = true
+  end
+  p.on("--encrypt", "Lors d'un `build` : force le chiffrement (avec les options CLI ou défauts AES-256)") do
+    encrypt_force_on = true
+  end
+
+  p.separator ""
   p.separator "Options des sous-commandes historiques :"
   p.on("-o FICHIER", "--output=FICHIER", "Fichier de sortie") { |v| output_path = v }
   p.on("--partitions=LIST", "Tailles séparées par virgules (ex: 4,2,1)") do |v|
@@ -257,6 +290,9 @@ if !positional.empty?
     positional = positional[1..]
   when "gs"
     mode_gs = true
+    positional = positional[1..]
+  when "encrypt"
+    mode_encrypt = true
     positional = positional[1..]
   end
 end
@@ -404,12 +440,94 @@ if mode_gs
   end
 end
 
+# Mode encrypt : chiffrer un PDF arbitraire (sans passer par le YAML).
+if mode_encrypt
+  if positional.empty?
+    STDERR.puts "Erreur : encrypt nécessite un fichier d'entrée."
+    STDERR.puts "Usage : crystal-combine-pdf encrypt FICHIER.pdf [-o SORTIE.pdf | -i]"
+    STDERR.puts "                                    [-l LEVEL] [-u USER_PWD] [-w OWNER_PWD]"
+    exit 1
+  end
+  input = positional.first
+  unless File.exists?(input)
+    STDERR.puts "Erreur : fichier introuvable : #{input}"
+    exit 1
+  end
+
+  output =
+    if compress_in_place
+      "#{input}.tmp.#{Process.pid}"
+    elsif !output_path.empty?
+      output_path
+    else
+      ext = File.extname(input)
+      base = input[0, input.size - ext.size]
+      "#{base}-encrypted#{ext}"
+    end
+
+  level_str = (encrypt_level || "aes_256").as(String)
+  level_sym = case level_str.downcase
+              when "rc4_128", "rc4-128", "rc4" then :rc4_128
+              when "aes_128", "aes-128"        then :aes_128
+              when "aes_256", "aes-256", "aes" then :aes_256
+              else
+                STDERR.puts "Erreur : niveau de chiffrement inconnu : #{level_str.inspect}"
+                STDERR.puts "Attendu : rc4_128 | aes_128 | aes_256"
+                exit 1
+              end
+
+  user_pwd = (encrypt_user_password || "").as(String)
+  owner_pwd = (encrypt_owner_password || user_pwd).as(String)
+
+  begin
+    pdf = CombinePDF.load(input)
+    pdf.encrypt(
+      user_password: user_pwd,
+      owner_password: owner_pwd,
+      level: level_sym,
+    )
+    pdf.save(output)
+
+    if compress_in_place
+      FileUtils.cp(input, "#{input}.bak") if compress_backup
+      File.rename(output, input)
+      final_path = input
+    else
+      final_path = output
+    end
+
+    puts "✓ PDF chiffré (#{level_sym})"
+    if compress_in_place
+      puts "  écrit dans : #{final_path}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"
+    else
+      puts "  écrit dans : #{final_path}"
+    end
+    if user_pwd.empty?
+      puts "  ⚠ mot de passe utilisateur VIDE (« owner-only ») — le PDF s'ouvre sans demander de mot de passe."
+    end
+    exit 0
+  rescue ex
+    STDERR.puts "Erreur : #{ex.message}"
+    exit 1
+  end
+end
+
 # Mode déclaratif sans drapeau = build (lit le YAML et produit le PDF)
 if positional.empty?
   yml = File.join(target_dir, CombinePDF::ConfigInitializer::CONFIG_FILENAME)
   if File.exists?(yml)
     begin
       builder = CombinePDF::BookletBuilder.from_dir(target_dir)
+      # Surcharges CLI (priorité sur le YAML)
+      builder.override_user_password = encrypt_user_password
+      builder.override_owner_password = encrypt_owner_password
+      builder.override_encrypt_level = encrypt_level
+      if encrypt_force_off
+        builder.override_encrypt_enabled = false
+      elsif encrypt_force_on
+        builder.override_encrypt_enabled = true
+      end
+
       output = builder.build
       puts "✓ Livret construit : #{output}"
       exit 0

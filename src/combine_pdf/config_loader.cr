@@ -28,6 +28,7 @@ module CombinePDF
         numbering: parse_numbering(data["numbering"]?),
         toc: parse_toc(data["toc"]?),
         watermark: parse_watermark(data["watermark"]?),
+        encrypt: parse_encrypt(data["encrypt"]?),
         files: parse_files_textually(raw),
       )
     end
@@ -163,6 +164,36 @@ module CombinePDF
         subtitle_font_size: parse_float(node["subtitle_font_size"]?, 16.0),
         entry_font_size: parse_float(node["entry_font_size"]?, 11.0),
         paper_size: parse_str(node["paper_size"]?, ""),
+      )
+    end
+
+    # Lit la section `encrypt:` du YAML. Si absente, renvoie `nil`
+    # (pas de chiffrement). Les mots de passe peuvent rester vides
+    # dans le YAML — ils seront fournis en CLI ou via env vars.
+    private def parse_encrypt(node : YAML::Any?) : Config::Encrypt?
+      return nil unless node
+
+      # `enabled: false` désactive explicitement même si le bloc est
+      # présent (commute facile pour des envs CI/CD).
+      enabled = parse_bool(node["enabled"]?, true)
+      return nil unless enabled
+
+      perms_node = node["permissions"]?
+      perms = if perms_node
+                arr = perms_node.as_a?
+                if arr
+                  arr.compact_map(&.as_s?)
+                else
+                  nil
+                end
+              end
+
+      Config::Encrypt.new(
+        level: parse_str(node["level"]?, "aes_256"),
+        user_password: parse_str(node["user_password"]?, ""),
+        owner_password: node["owner_password"]?.try(&.as_s?),
+        permissions: perms,
+        encrypt_metadata: parse_bool(node["encrypt_metadata"]?, true),
       )
     end
 

@@ -1,3 +1,5 @@
+require "random/secure"
+
 module CombinePDF
   # ISO-compatible port of `CombinePDF::PDF` from the Ruby gem
   # `combine_pdf` v1.0.31. Wraps the merger state (objects + page
@@ -254,6 +256,67 @@ module CombinePDF
       io = IO::Memory.new
       @merger.write(io)
       io.to_slice
+    end
+
+    # Active le chiffrement du PDF. Au prochain `save`, tous les
+    # streams et chaînes indirectes seront chiffrés et un dictionnaire
+    # `/Encrypt` sera écrit dans le trailer.
+    #
+    # ```
+    # pdf = CombinePDF.load("input.pdf")
+    # pdf.encrypt(
+    #   user_password: "secret",
+    #   owner_password: "owner",
+    #   level: :aes_256,
+    #   permissions: [PDF::Security::Permission::Print],
+    # )
+    # pdf.save("encrypted.pdf")
+    # ```
+    #
+    # Niveau (`level`) :
+    # * `:rc4_128` — RC4 128-bit (V=2, R=3). Compatible Acrobat ≥ 5.
+    # * `:aes_128` — AES-128 + CryptFilter AESV2 (V=4, R=4). Acrobat ≥ 7.
+    # * `:aes_256` — AES-256 (V=5, R=6, PDF 2.0). Acrobat ≥ X. Défaut.
+    def encrypt(
+      user_password : String = "",
+      owner_password : String = "",
+      level : Symbol = :aes_256,
+      permissions : Array(::PDF::Security::Permission) = [
+        ::PDF::Security::Permission::Print,
+        ::PDF::Security::Permission::Copy,
+        ::PDF::Security::Permission::Modify,
+        ::PDF::Security::Permission::Annotate,
+      ],
+      encrypt_metadata : Bool = true,
+    ) : self
+      lvl = case level
+            when :rc4_128 then ::PDF::Encryption::StandardSecurity::Level::RC4_128
+            when :aes_128 then ::PDF::Encryption::StandardSecurity::Level::AES_128
+            when :aes_256 then ::PDF::Encryption::StandardSecurity::Level::AES_256
+            else
+              raise ArgumentError.new("Niveau de chiffrement inconnu : #{level.inspect}")
+            end
+
+      # Calcul de /P (permissions) selon § 7.6.3.2.
+      perms_value = -1_i32
+      perms_value &= ~0b00111100 # bits 3..6 à 0
+      permissions.each { |p| perms_value |= p.value }
+      perms_value &= ~0b11 # bits 1..2 à 0
+
+      # /ID — 16 octets aléatoires si pas déjà fixés
+      @merger.file_id ||= Random::Secure.random_bytes(16)
+      id_bytes = @merger.file_id.not_nil!
+
+      @merger.security_handler =
+        ::PDF::Encryption::StandardSecurity.build_for_encryption(
+          user_password: user_password,
+          owner_password: owner_password.empty? ? user_password : owner_password,
+          level: lvl,
+          permissions: perms_value,
+          id: id_bytes,
+          encrypt_metadata: encrypt_metadata,
+        )
+      self
     end
 
     # Reapplies title/author metadata to the merger before writing.

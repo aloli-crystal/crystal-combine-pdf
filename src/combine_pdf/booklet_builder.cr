@@ -10,6 +10,15 @@ module CombinePDF
     @config : Config
     @base_dir : String
 
+    # Surcharges optionnelles fournies par la CLI : permettent de
+    # passer le mot de passe en ligne de commande sans le mettre
+    # dans le YAML (cas typique : YAML versionné, mots de passe
+    # secrets). `nil` = on garde la valeur du YAML telle quelle.
+    property override_user_password : String? = nil
+    property override_owner_password : String? = nil
+    property override_encrypt_level : String? = nil
+    property override_encrypt_enabled : Bool? = nil
+
     def initialize(@config : Config, @base_dir : String)
     end
 
@@ -126,10 +135,11 @@ module CombinePDF
               File.copy(tmp_numbered, tmp_watermarked)
             end
 
-            # 4) Métadonnées (title/author) via PDF wrapper
+            # 4) Métadonnées (title/author) + chiffrement éventuel
             pdf = CombinePDF.load(tmp_watermarked)
             pdf.title = @config.title unless @config.title.empty?
             pdf.author = @config.author unless @config.author.empty?
+            apply_encryption_if_requested(pdf)
             pdf.save(output_path)
           ensure
             File.delete(tmp_watermarked) if File.exists?(tmp_watermarked)
@@ -202,6 +212,44 @@ module CombinePDF
           idx - front + 1
         end
       end
+    end
+
+    # Applique le chiffrement au PDF si demandé par le YAML ou par
+    # une surcharge CLI. Mots de passe :
+    # * en CLI (`override_*_password`) : prioritaire — utile quand
+    #   on ne veut pas écrire le mot de passe en clair dans le YAML
+    #   (ex. YAML versionné).
+    # * dans le YAML (`encrypt.user_password` / `encrypt.owner_password`)
+    #   sinon.
+    private def apply_encryption_if_requested(pdf : CombinePDF::PDF) : Nil
+      enc = @config.encrypt
+      enabled_override = @override_encrypt_enabled
+      return if enabled_override == false
+      return if enc.nil? && enabled_override != true
+
+      # Si le YAML n'a pas d'encrypt et qu'on veut activer via CLI :
+      # construire une config par défaut.
+      enc ||= Config::Encrypt.new(level: @override_encrypt_level || "aes_256")
+
+      level_str = @override_encrypt_level || enc.level
+      level_sym = case level_str.downcase
+                  when "rc4_128", "rc4-128", "rc4" then :rc4_128
+                  when "aes_128", "aes-128"        then :aes_128
+                  when "aes_256", "aes-256", "aes" then :aes_256
+                  else
+                    raise "Niveau de chiffrement inconnu : #{level_str.inspect}"
+                  end
+
+      user_pwd = @override_user_password || enc.user_password
+      owner_pwd = @override_owner_password || enc.owner_password || user_pwd
+
+      pdf.encrypt(
+        user_password: user_pwd,
+        owner_password: owner_pwd,
+        level: level_sym,
+        permissions: enc.permissions_for_pdf,
+        encrypt_metadata: enc.encrypt_metadata,
+      )
     end
 
     private def apply_watermark(input : String, output : String, wm : Config::Watermark) : Nil

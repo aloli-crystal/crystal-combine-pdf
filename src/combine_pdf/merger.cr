@@ -35,6 +35,11 @@ module CombinePDF
     property metadata_title : String? = nil
     property metadata_author : String? = nil
 
+    # Chiffrement — quand défini, le writer ajoute /Encrypt et chiffre
+    # tous les streams + chaînes indirectes au moment de l'écriture.
+    property security_handler : ::PDF::Encryption::StandardSecurity? = nil
+    property file_id : Bytes? = nil
+
     def initialize
     end
 
@@ -221,7 +226,11 @@ module CombinePDF
       end
       @objects << ::PDF::Objects::Indirect.new(info_id, info_dict)
 
-      MergedDocumentWriter.new(@objects, catalog_id, info_id).write(io)
+      MergedDocumentWriter.new(
+        @objects, catalog_id, info_id,
+        security_handler: @security_handler,
+        file_id: @file_id,
+      ).write(io)
     end
 
     private def allocate_id : Int32
