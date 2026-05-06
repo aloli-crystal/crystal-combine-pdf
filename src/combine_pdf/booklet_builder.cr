@@ -56,6 +56,10 @@ module CombinePDF
           reader = ::PDF::Reader.open(full)
           total_size = reader.@trailer["Size"]?.try(&.as?(::PDF::Objects::Number)).try(&.to_i64.to_i32) || 0
           (1...total_size).each { |id| reader.resolve(::PDF::Objects::Reference.new(id)) }
+        rescue ex : ::PDF::EncryptedPdfError
+          # Cas spécifique : PDF chiffré (RC4/AES). Message beaucoup
+          # plus ciblé que le générique « Invalid header ».
+          bad_files << {entry.path, "chiffré — #{ex.message}"}
         rescue ex
           bad_files << {entry.path, ex.message || "erreur inconnue"}
         end

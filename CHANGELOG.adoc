@@ -3,6 +3,39 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.26 — 2026-05-06
+
+=== Fixed
+
+* **Diagnostic précis des PDFs chiffrés** — au lieu d'un cryptique
+  `Invalid header` (levé par zlib quand il tente de décompresser
+  des octets chiffrés RC4/AES), le message d'erreur indique
+  désormais clairement la nature du problème :
++
+[source]
+----
+Erreur : Fichiers non lisibles :
+  - partageons-le-pain.pdf
+    → chiffré — PDF chiffré : Filter=Standard, algorithme=RC4 128-bit, R=3.
+      Le déchiffrement n'est pas encore supporté par ce shard.
+----
++
+S'appuie sur la nouvelle exception `PDF::EncryptedPdfError` du
+shard `aloli-crystal/pdf` v0.3.9, levée par `Reader.open` quand
+le trailer contient `/Encrypt`. Détecte tous les niveaux de
+chiffrement standard (RC4 40 / 128 bit, AES-128, AES-256).
++
+*Cas typique attrapé* : « owner-only protection » des PDFs
+Office / Acrobat avec restrictions de copie ou d'édition mais
+sans mot de passe utilisateur. `pdfinfo` affiche souvent
+`Encrypted: no` sur ces fichiers (parce qu'aucun mot de passe
+n'est demandé), mais ils sont bien chiffrés et le shard ne sait
+pas les lire.
+
+=== Changed
+
+* Bump dépendance `aloli-crystal/pdf ~> 0.3.7` → `~> 0.3.9`.
+
 == v1.0.31.25 — 2026-05-06
 
 === Added
