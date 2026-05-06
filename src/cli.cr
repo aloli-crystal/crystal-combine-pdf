@@ -20,10 +20,11 @@ require "./combine_pdf"
 mode_init = false
 mode_refresh = false
 mode_compress = false
+mode_gs = false
 recursive = false
 target_dir = "."
 
-# ─── Drapeaux du mode `compress` ──────────────────────────────────
+# ─── Drapeaux du mode `compress` / `gs` ───────────────────────────
 compress_in_place = false
 compress_backup = false
 compress_deep = false
@@ -93,6 +94,12 @@ parser = OptionParser.new do |p|
         garbage collection des objets orphelins). Gain typique 30-80
         %. Pas de downsampling d'images en pur Crystal — voir le
         futur flag --deep pour ce besoin (via aloli-crystal/ghostscript).
+
+      crystal-combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i]
+        Normalise un PDF via Ghostscript. Utile quand le parser
+        interne refuse un PDF mal formé (ex. PDF linéarisé Acrobat
+        ancien avec stream zlib invalide). Court-circuite le parser
+        Crystal et délègue tout à gs. Nécessite ghostscript installé.
 
     Sous-commandes historiques :
       number FICHIER                Numérote les pages d'un PDF existant
@@ -248,6 +255,9 @@ if !positional.empty?
   when "compress"
     mode_compress = true
     positional = positional[1..]
+  when "gs"
+    mode_gs = true
+    positional = positional[1..]
   end
 end
 
@@ -315,6 +325,77 @@ if mode_compress
       puts "  écrit dans : #{input}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"
     else
       puts "  écrit dans : #{output}"
+    end
+    exit 0
+  rescue ex
+    STDERR.puts "Erreur : #{ex.message}"
+    exit 1
+  end
+end
+
+# Mode gs : normaliser un PDF via Ghostscript (utile quand le pdf
+# shard interne refuse un PDF mal formé / linéarisé ancien).
+# Court-circuite complètement le parser Crystal — on shell-out
+# directement sur gs avec PDFSETTINGS=/default (préserve la
+# qualité, réécrit la structure).
+if mode_gs
+  if positional.empty?
+    STDERR.puts "Erreur : gs nécessite un fichier d'entrée."
+    STDERR.puts "Usage : crystal-combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i] [--backup]"
+    exit 1
+  end
+  unless ::Ghostscript.available?
+    STDERR.puts "Erreur : ghostscript (gs) n'est pas installé."
+    STDERR.puts "Installation :"
+    STDERR.puts "  macOS    : brew install ghostscript"
+    STDERR.puts "  FreeBSD  : pkg install ghostscript10"
+    STDERR.puts "  Debian   : apt install ghostscript"
+    exit 1
+  end
+  input = positional.first
+  unless File.exists?(input)
+    STDERR.puts "Erreur : fichier introuvable : #{input}"
+    exit 1
+  end
+  output =
+    if compress_in_place
+      "#{input}.tmp.#{Process.pid}"
+    elsif !output_path.empty?
+      output_path
+    else
+      ext = File.extname(input)
+      base = input[0, input.size - ext.size]
+      "#{base}-normalised#{ext}"
+    end
+
+  begin
+    before = File.size(input).to_i64
+    result = ::Ghostscript.compress(input, output, quality: :default)
+    unless result.success?
+      STDERR.puts "Erreur : gs a échoué (exit #{result.exit_code})"
+      stderr_first = result.stderr.lines.first?
+      STDERR.puts stderr_first.try(&.strip) if stderr_first
+      File.delete(output) if File.exists?(output)
+      exit 1
+    end
+    after = File.size(output).to_i64
+    if compress_in_place
+      FileUtils.cp(input, "#{input}.bak") if compress_backup
+      File.rename(output, input)
+      final_path = input
+    else
+      final_path = output
+    end
+    pct = before == 0 ? 0.0 : (1.0 - after.to_f64 / before) * 100.0
+    fmt = ->(b : Int64) {
+      kb = b / 1024.0
+      kb < 1024 ? "%.1f Ko" % kb : "%.2f Mo" % (kb / 1024.0)
+    }
+    puts "✓ #{fmt.call(before)} → #{fmt.call(after)} (#{"%.1f" % pct} %) [normalisé via gs]"
+    if compress_in_place
+      puts "  écrit dans : #{final_path}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"
+    else
+      puts "  écrit dans : #{final_path}"
     end
     exit 0
   rescue ex

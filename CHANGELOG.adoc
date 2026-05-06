@@ -3,6 +3,37 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.25 — 2026-05-06
+
+=== Added
+
+* **Sous-commande `crystal-combine-pdf gs FICHIER.pdf`** — normalise
+  un PDF via Ghostscript, court-circuit complet du parser pdf
+  interne. Utile quand un PDF mal formé (typique : PDF linéarisé
+  Acrobat ancien avec stream zlib invalide) refuse d'être lu par
+  le shard.
++
+[source,shell]
+----
+crystal-combine-pdf gs fichier.pdf            # → fichier-normalised.pdf
+crystal-combine-pdf gs fichier.pdf -i         # in-place
+crystal-combine-pdf gs fichier.pdf -i --backup
+crystal-combine-pdf gs fichier.pdf -o sortie.pdf
+----
++
+Délègue à `aloli-crystal/ghostscript` avec
+`PDFSETTINGS=/default` (préserve la qualité, réécrit la
+structure). Erreur claire si `gs` n'est pas installé, avec
+commandes d'installation par OS.
+
+=== Changed
+
+* **Message d'erreur `Fichiers non lisibles`** mis à jour pour
+  proposer la nouvelle sous-commande `gs` en première option de
+  contournement (au lieu de la commande `gs` brute, plus
+  complexe à recopier). La commande gs reste documentée comme
+  alternative pour qui veut.
+
 == v1.0.31.24 — 2026-05-06
 
 === Fixed
