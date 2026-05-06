@@ -3,6 +3,27 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.28 — 2026-05-07
+
+**Lecture des PDFs chiffrés AES-128 et AES-256** — `pdf` v0.5.0
+ajoute le déchiffrement natif du Standard Security Handler V=4
+(AES-128, Acrobat ≥ 7) et V=5 R=6 (AES-256, PDF 2.0). Conséquence
+pour `crystal-combine-pdf` : la grande majorité des PDFs chiffrés
+modernes (Office, Acrobat, qpdf --encrypt 256) s'ouvrent et se
+fusionnent directement.
+
+=== Fixed
+
+* Les PDFs chiffrés AES-128 et AES-256 (en plus du RC4 déjà géré
+  en v1.0.31.27) sont lus nativement. Le contournement
+  `crystal-combine-pdf gs FICHIER.pdf -i --backup` n'est plus
+  nécessaire que pour les rares PDFs au format vraiment exotique
+  (PDFs linéarisés Acrobat 4 cassés, etc.).
+
+=== Changed
+
+* Bump dépendance `aloli-crystal/pdf ~> 0.4.0` → `~> 0.5.0`.
+
 == v1.0.31.27 — 2026-05-01
 
 **Lecture native des PDFs chiffrés RC4** — le shard `aloli-crystal/pdf`

@@ -1,5 +1,5 @@
 name: crystal-combine-pdf
-version: 1.0.31.27
+version: 1.0.31.28
 
 description: |
   ISO-compatible Crystal port of the Ruby gem `combine_pdf` v1.0.31
@@ -32,7 +32,7 @@ license: MIT
 dependencies:
   pdf:
     github: aloli-crystal/pdf
-    version: "~> 0.4.0"
+    version: "~> 0.5.0"
   watermark:
     github: aloli-crystal/watermark
     version: "~> 0.1.3"
