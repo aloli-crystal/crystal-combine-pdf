@@ -73,10 +73,11 @@ module CombinePDF
           s << "\nContournements possibles :\n"
           s << "  1. Normaliser le PDF via Ghostscript (recommandé) :\n"
           bad_files.each do |path, _|
-            s << "       crystal-combine-pdf gs " << path << " -i\n"
+            s << "       crystal-combine-pdf gs " << path << " -i --backup\n"
           end
           s << "     Réécrit le PDF en place avec une structure standard\n"
-          s << "     que le shard arrive à parser. Nécessite `gs` installé.\n"
+          s << "     que le shard arrive à parser. L'original est sauvegardé\n"
+          s << "     en .bak. Nécessite `gs` installé.\n"
           s << "\n"
           s << "  2. Ou exclure l'entrée du YAML en la préfixant par `# - `.\n"
           s << "\n"

@@ -3,6 +3,41 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.27 — 2026-05-01
+
+**Lecture native des PDFs chiffrés RC4** — le shard `aloli-crystal/pdf`
+v0.4.0 sait désormais déchiffrer le « Standard Security Handler »
+(RC4 V=1/V=2, R=2/R=3). Conséquence pour `crystal-combine-pdf` : la
+plupart des PDFs « owner-only protected » (cas le plus courant des
+exports Office / Acrobat) s'ouvrent et se fusionnent directement,
+SANS passer par `crystal-combine-pdf gs` au préalable.
+
+=== Fixed
+
+* **PDFs chiffrés RC4 lus nativement.** Le cas typique du PDF
+  « propriétaire seulement chiffré » (mot de passe utilisateur
+  vide, restrictions de copie/édition activées par l'auteur)
+  fonctionne désormais en une étape :
++
+[source]
+----
+$ crystal-combine-pdf
+✓ Livret construit : ./mon-livret.pdf
+----
++
+À la place de l'ancien message d'erreur cryptique `Invalid header`
+puis du contournement `crystal-combine-pdf gs FICHIER.pdf -i --backup`.
+
+=== Changed
+
+* Bump dépendance `aloli-crystal/pdf ~> 0.3.9` → `~> 0.4.0`.
+
+=== Notes
+
+Les PDFs chiffrés AES (V=4/V=5) ne sont pas encore lus nativement.
+Pour ceux-là, le contournement `crystal-combine-pdf gs FICHIER.pdf
+-i --backup` reste nécessaire. Le message d'erreur le rappelle.
+
 == v1.0.31.26 — 2026-05-06
 
 === Fixed
