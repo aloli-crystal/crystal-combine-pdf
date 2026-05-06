@@ -1,6 +1,6 @@
 module CombinePDF
   # Génère un fichier `.crystal-combine-pdf.yml` par défaut dans un
-  # dossier — utilisé par `crystal-combine-pdf --init`.
+  # dossier — utilisé par `crystal-combine-pdf init`.
   #
   # Le YAML produit contient :
   # * des champs scalaires raisonnables (output, title déduits du nom

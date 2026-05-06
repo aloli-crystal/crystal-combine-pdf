@@ -17,7 +17,7 @@ module CombinePDF
     def self.from_dir(dir : String) : BookletBuilder
       yml = File.join(dir, ConfigInitializer::CONFIG_FILENAME)
       unless File.exists?(yml)
-        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord crystal-combine-pdf --init."
+        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord `crystal-combine-pdf init`."
       end
       new(ConfigLoader.load(yml), dir)
     end
@@ -37,18 +37,25 @@ module CombinePDF
 
       output_path = File.join(@base_dir, @config.output)
 
-      # Validation préalable : tente d'ouvrir chaque fichier pour
-      # repérer les rares cas où `pdf` n'arrive pas à
-      # parser (PDF malformé, encryption non supportée, etc.).
-      # Depuis pdf v0.3.6 les xref streams et les filtres
-      # CCITTFaxDecode/DCTDecode/JBIG2Decode sont gérés ;
-      # cette boucle attrape les cas restants et donne un message
-      # explicite au lieu d'un crash plus loin dans la pipeline.
+      # Validation préalable : tente d'ouvrir ET de matérialiser tous
+      # les objets de chaque fichier pour repérer les rares cas où
+      # `pdf` n'arrive pas à parser (PDF malformé, encryption non
+      # supportée, stream avec en-tête zlib invalide d'un PDF
+      # linéarisé Acrobat ancien, etc.).
+      #
+      # On ne se contente PAS de `page_count` : ouvrir le PDF n'est
+      # qu'une lecture du xref, mais les streams ne sont décompressés
+      # que lors de la matérialisation. Forcer la résolution de tous
+      # les objets attrape les erreurs Zlib/Filter qui surviendraient
+      # plus tard pendant la fusion et donneraient un message
+      # cryptique sans contexte de fichier.
       bad_files = [] of Tuple(String, String)
       active.each do |entry|
         full = File.join(@base_dir, entry.path)
         begin
-          ::PDF::Reader.open(full).page_count
+          reader = ::PDF::Reader.open(full)
+          total_size = reader.@trailer["Size"]?.try(&.as?(::PDF::Objects::Number)).try(&.to_i64.to_i32) || 0
+          (1...total_size).each { |id| reader.resolve(::PDF::Objects::Reference.new(id)) }
         rescue ex
           bad_files << {entry.path, ex.message || "erreur inconnue"}
         end
@@ -59,7 +66,13 @@ module CombinePDF
           bad_files.each do |path, err|
             s << "  - " << path << "\n    → " << err << "\n"
           end
-          s << "\nVous pouvez exclure une entrée dans le YAML en la préfixant par `# - `.\n"
+          s << "\nContournements possibles :\n"
+          s << "  - Excluez l'entrée dans le YAML en la préfixant par `# - `.\n"
+          s << "  - Pré-traitez le PDF avec ghostscript, qui réécrit\n"
+          s << "    les structures non standard :\n"
+          s << "      gs -sDEVICE=pdfwrite -dPDFSETTINGS=/default \\\n"
+          s << "         -o normalise.pdf -dNOPAUSE -dQUIET -dBATCH \\\n"
+          s << "         le-fichier-cassé.pdf\n"
         end
         raise msg
       end

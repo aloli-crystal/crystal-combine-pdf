@@ -23,7 +23,7 @@ module CombinePDF
     def refresh(dir : String, recursive : Bool = false) : String
       target = File.join(dir, ConfigInitializer::CONFIG_FILENAME)
       unless File.exists?(target)
-        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord crystal-combine-pdf --init."
+        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord `crystal-combine-pdf init`."
       end
 
       raw = File.read(target)

@@ -3,6 +3,37 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.24 — 2026-05-06
+
+=== Corrigé
+
+* **Validation préalable du livret enrichie** — détecte désormais
+  les PDFs dont les streams ne sont pas décompressables (zlib
+  `Invalid header`, typique des PDFs linéarisés Acrobat anciens
+  type Acrobat Distiller 8.x). Auparavant, le crash survenait
+  pendant la fusion sans contexte de fichier (« Erreur : Invalid
+  header » et plus rien). Désormais le message identifie le
+  fichier coupable et propose un contournement gs explicite.
++
+La validation force la matérialisation de tous les objets
+indirects (pas seulement `page_count` qui ne lit que le xref) ;
+les erreurs Zlib/Filter qui surviendraient pendant la fusion sont
+ainsi attrapées tôt avec le contexte fichier.
+
+* **Documentation : `--init` → `init`** partout (banner CLI,
+  message d'erreur de démarrage, exceptions levées par
+  `BookletBuilder` et `ConfigRefresher`, README EN/FR,
+  commentaires de `ConfigInitializer`). La forme drapeau `--init`
+  n'a jamais existé comme telle dans le code (seule la
+  sous-commande positionnelle fonctionne) ; cette release nettoie
+  les mentions héritées.
+
+=== Documentation
+
+* README EN/FR : section « Commands / Commandes » mise à jour pour
+  refléter les options actuelles (`--profile`, `--user-config`,
+  `compress` avec `-i` / `--deep` / `--backup`).
+
 == v1.0.31.23 — 2026-05-02
 
 === Ajouté

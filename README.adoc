@@ -30,7 +30,7 @@ Trois commandes pour assembler un dossier de PDF en livret :
 [source,shell]
 ----
 cd /chemin/vers/mes-partitions
-crystal-combine-pdf --init      # génère .crystal-combine-pdf.yml
+crystal-combine-pdf init        # génère .crystal-combine-pdf.yml
 $EDITOR .crystal-combine-pdf.yml  # réordonner, titrer, exclure
 crystal-combine-pdf             # construit mes-partitions.pdf
 ----
@@ -173,22 +173,30 @@ any list of PDFs.
 
 [source,shell]
 ----
-crystal-combine-pdf -i, --init [-r, --recursive]
+crystal-combine-pdf init [-r] [--profile NAME] [--user-config PATH]
   Initialise .crystal-combine-pdf.yml in the current folder.
   -r scans subfolders too (parents first, then alpha).
+  --profile : booklet (default) | book | report | slides | minimal
+  --user-config : custom path (defaults to ~/.crystal-combine-pdf.yml)
 
-crystal-combine-pdf -R, --refresh [-r, --recursive]
+crystal-combine-pdf refresh [-r]
   Refresh the `files:` list of an existing YAML : add new PDFs
   at the end, comment out entries whose file has disappeared.
   Preserves comments, current order and inline titles.
 
-crystal-combine-pdf -d, --dir DIR
-  Target a different folder than the current.
-
+crystal-combine-pdf build
 crystal-combine-pdf
   No subcommand : reads .crystal-combine-pdf.yml from the
   current folder, assembles the booklet, applies numbering and
   watermark, writes the output.
+
+crystal-combine-pdf compress FILE.pdf [-o OUTPUT.pdf | -i] [--deep]
+  Reduce the size of a single PDF (Flate recompression + GC).
+  --deep delegates to ghostscript for image downsampling.
+  -i : in-place, --backup : keep original as .bak.
+
+crystal-combine-pdf -d, --dir DIR
+  Common option : target a different folder than the current.
 ----
 
 === `.crystal-combine-pdf.yml` example

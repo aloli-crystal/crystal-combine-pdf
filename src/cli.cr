@@ -3,13 +3,14 @@ require "./combine_pdf"
 
 # crystal-combine-pdf CLI.
 #
-# v1.0.31.2 ajoute le mode déclaratif :
+# Mode déclaratif (recommandé) :
 #
-#   crystal-combine-pdf --init [--recursive]   crée .crystal-combine-pdf.yml
-#   crystal-combine-pdf --refresh [--recursive]  rafraîchit la liste files:
-#   crystal-combine-pdf                          construit le livret depuis le YAML
+#   crystal-combine-pdf init [-r]      crée .crystal-combine-pdf.yml
+#   crystal-combine-pdf refresh [-r]   rafraîchit la liste files:
+#   crystal-combine-pdf                construit le livret depuis le YAML
+#   crystal-combine-pdf compress F.pdf compresse un PDF unique
 #
-# Conserve les sous-commandes historiques :
+# Sous-commandes historiques :
 #
 #   number    — numérote les pages d'un PDF existant
 #   merge     — concatène plusieurs PDF en un seul
@@ -338,7 +339,7 @@ if positional.empty?
   else
     STDERR.puts "Erreur : aucune sous-commande spécifiée et aucun #{CombinePDF::ConfigInitializer::CONFIG_FILENAME} trouvé dans #{target_dir}."
     STDERR.puts ""
-    STDERR.puts "Pour démarrer : crystal-combine-pdf --init"
+    STDERR.puts "Pour démarrer : crystal-combine-pdf init"
     STDERR.puts parser
     exit 1
   end

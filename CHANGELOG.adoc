@@ -3,6 +3,54 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.24 — 2026-05-06
+
+=== Fixed
+
+* **Validation préalable du livret enrichie** — détecte désormais
+  les PDFs dont les streams ne sont pas décompressables (zlib
+  `Invalid header` typique des PDFs linéarisés Acrobat anciens
+  type Acrobat Distiller 8.x). Auparavant, le crash avait lieu
+  pendant la fusion sans contexte de fichier (« Erreur : Invalid
+  header » et plus rien). Désormais le message identifie le
+  fichier coupable :
++
+[source]
+----
+Erreur : Fichiers non lisibles :
+  - partageons-le-pain.pdf
+    → Invalid header
+
+Contournements possibles :
+  - Excluez l'entrée dans le YAML en la préfixant par `# - `.
+  - Pré-traitez le PDF avec ghostscript, qui réécrit
+    les structures non standard :
+      gs -sDEVICE=pdfwrite -dPDFSETTINGS=/default \\
+         -o normalise.pdf -dNOPAUSE -dQUIET -dBATCH \\
+         le-fichier-cassé.pdf
+----
++
+La validation force désormais la matérialisation de tous les
+objets indirects (pas juste `page_count` qui ne lit que le xref) ;
+les erreurs Zlib/Filter qui surviendraient pendant la fusion sont
+attrapées tôt avec le contexte fichier.
+
+* **Documentation : `--init` → `init`** dans le banner CLI, le
+  message d'erreur (« Pour démarrer : crystal-combine-pdf init »),
+  les exceptions levées par `BookletBuilder` et
+  `ConfigRefresher`, le README EN/FR et la commentaire de
+  `ConfigInitializer`. La forme flag `--init` n'a jamais existé
+  comme telle dans le code (seule la sous-commande positionnelle
+  fonctionne) ; cette release nettoie les rares mentions héritées.
+
+=== Documentation
+
+* README EN/FR : section « Commands / Commandes » mise à jour pour
+  refléter les options actuelles (`--profile`, `--user-config`,
+  `compress` avec `-i` / `--deep` / `--backup`). L'ancienne syntaxe
+  `-i, --init` / `-R, --refresh` retirée — elle n'était de toute
+  façon plus exposée par le parseur.
+
 == v1.0.31.23 — 2026-05-02
 
 === Added

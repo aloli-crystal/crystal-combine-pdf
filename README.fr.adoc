@@ -31,7 +31,7 @@ Trois commandes pour assembler un dossier de PDF en livret :
 [source,shell]
 ----
 cd /chemin/vers/mes-partitions
-crystal-combine-pdf --init      # génère .crystal-combine-pdf.yml
+crystal-combine-pdf init        # génère .crystal-combine-pdf.yml
 $EDITOR .crystal-combine-pdf.yml  # réordonner, titrer, exclure
 crystal-combine-pdf             # construit mes-partitions.pdf
 ----
@@ -175,22 +175,30 @@ chants, ou n'importe quelle liste de PDF.
 
 [source,shell]
 ----
-crystal-combine-pdf -i, --init [-r, --recursive]
+crystal-combine-pdf init [-r] [--profile NOM] [--user-config CHEMIN]
   Initialise .crystal-combine-pdf.yml dans le dossier courant.
   -r scanne aussi les sous-dossiers (parents d'abord, puis alpha).
+  --profile : booklet (défaut) | book | report | slides | minimal
+  --user-config : chemin custom (défaut : ~/.crystal-combine-pdf.yml)
 
-crystal-combine-pdf -R, --refresh [-r, --recursive]
+crystal-combine-pdf refresh [-r]
   Rafraîchit la liste `files:` du YAML existant : ajoute en fin
   les nouveaux PDF, commente les entrées dont le fichier a
   disparu. Préserve commentaires, ordre courant et titres inline.
 
-crystal-combine-pdf -d, --dir DOSSIER
-  Cible un dossier différent du courant.
-
+crystal-combine-pdf build
 crystal-combine-pdf
   Sans sous-commande : lit .crystal-combine-pdf.yml du dossier
   courant, assemble le livret, applique numérotation et
   filigrane, écrit la sortie.
+
+crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i] [--deep]
+  Réduit la taille d'un PDF unique (recompression Flate + GC).
+  --deep délègue à ghostscript pour le downsampling d'images.
+  -i : in-place, --backup : conserve l'original sous .bak.
+
+crystal-combine-pdf -d, --dir DOSSIER
+  Option commune : cible un dossier différent du courant.
 ----
 
 === Exemple de `.crystal-combine-pdf.yml`
