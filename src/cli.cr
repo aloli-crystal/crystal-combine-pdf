@@ -22,6 +22,7 @@ mode_refresh = false
 mode_compress = false
 mode_gs = false
 mode_encrypt = false
+mode_decrypt = false
 recursive = false
 target_dir = "."
 
@@ -37,6 +38,10 @@ encrypt_owner_password : String? = nil
 encrypt_level : String? = nil
 encrypt_force_off = false
 encrypt_force_on = false
+
+# ─── Drapeau pour ouvrir les PDFs sources chiffrés (mode `build`
+#     ainsi que `decrypt`).
+input_password : String? = nil
 
 # ─── Config user (préférences globales pour `init`) ───────────────
 # Chargée AVANT le parsing CLI pour fixer le profil par défaut. Les
@@ -115,6 +120,13 @@ parser = OptionParser.new do |p|
         ou AES-256). Pas besoin du YAML — on opère directement sur
         le fichier passé en argument. Voir aussi la section `encrypt:`
         du YAML pour chiffrer le livret produit par `build`.
+
+      crystal-combine-pdf decrypt FICHIER.pdf [-o SORTIE.pdf | -i] [-u PWD]
+        Déchiffre un PDF protégé : le sauve sans `/Encrypt` (PDF en
+        clair). Le mot de passe (utilisateur OU owner) est fourni
+        via `-u` ; vide par défaut pour les PDFs « owner-only
+        protected » (cas le plus courant : restrictions sans
+        password à l'ouverture). Symétrique de `encrypt`.
 
     Sous-commandes historiques :
       number FICHIER                Numérote les pages d'un PDF existant
@@ -225,6 +237,9 @@ parser = OptionParser.new do |p|
   p.on("--encrypt", "Lors d'un `build` : force le chiffrement (avec les options CLI ou défauts AES-256)") do
     encrypt_force_on = true
   end
+  p.on("-I PWD", "--input-password=PWD", "Mot de passe à essayer sur les PDFs sources chiffrés (utilisé par `build` et `decrypt`)") do |v|
+    input_password = v
+  end
 
   p.separator ""
   p.separator "Options des sous-commandes historiques :"
@@ -293,6 +308,9 @@ if !positional.empty?
     positional = positional[1..]
   when "encrypt"
     mode_encrypt = true
+    positional = positional[1..]
+  when "decrypt"
+    mode_decrypt = true
     positional = positional[1..]
   end
 end
@@ -512,6 +530,70 @@ if mode_encrypt
   end
 end
 
+# Mode decrypt : sauve une version non chiffrée d'un PDF.
+if mode_decrypt
+  if positional.empty?
+    STDERR.puts "Erreur : decrypt nécessite un fichier d'entrée."
+    STDERR.puts "Usage : crystal-combine-pdf decrypt FICHIER.pdf [-o SORTIE.pdf | -i] [-u PWD]"
+    exit 1
+  end
+  input = positional.first
+  unless File.exists?(input)
+    STDERR.puts "Erreur : fichier introuvable : #{input}"
+    exit 1
+  end
+
+  output =
+    if compress_in_place
+      "#{input}.tmp.#{Process.pid}"
+    elsif !output_path.empty?
+      output_path
+    else
+      ext = File.extname(input)
+      base = input[0, input.size - ext.size]
+      "#{base}-decrypted#{ext}"
+    end
+
+  # `decrypt` accepte -u (user password) OU -I (input password) ;
+  # les deux sont équivalents dans ce contexte (on ouvre un seul
+  # fichier chiffré pour le ré-écrire en clair).
+  user_pwd = (encrypt_user_password || input_password || "").as(String)
+
+  begin
+    pdf = CombinePDF.load(input, password: user_pwd)
+    # Pas de pdf.encrypt(...) → la sortie est en clair.
+    pdf.save(output)
+
+    if compress_in_place
+      FileUtils.cp(input, "#{input}.bak") if compress_backup
+      File.rename(output, input)
+      final_path = input
+    else
+      final_path = output
+    end
+
+    puts "✓ PDF déchiffré"
+    if compress_in_place
+      puts "  écrit dans : #{final_path}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"
+    else
+      puts "  écrit dans : #{final_path}"
+    end
+    exit 0
+  rescue ex : ::PDF::EncryptedPdfError
+    STDERR.puts "Erreur : #{ex.message}"
+    if user_pwd.empty?
+      STDERR.puts ""
+      STDERR.puts "Le PDF est chiffré et le mot de passe vide n'a pas suffi."
+      STDERR.puts "Fournissez-le via `-u PWD` (ou `--user-password=PWD`)."
+      STDERR.puts "Le mot de passe owner fonctionne aussi."
+    end
+    exit 1
+  rescue ex
+    STDERR.puts "Erreur : #{ex.message}"
+    exit 1
+  end
+end
+
 # Mode déclaratif sans drapeau = build (lit le YAML et produit le PDF)
 if positional.empty?
   yml = File.join(target_dir, CombinePDF::ConfigInitializer::CONFIG_FILENAME)
@@ -522,6 +604,7 @@ if positional.empty?
       builder.override_user_password = encrypt_user_password
       builder.override_owner_password = encrypt_owner_password
       builder.override_encrypt_level = encrypt_level
+      builder.override_input_password = input_password
       if encrypt_force_off
         builder.override_encrypt_enabled = false
       elsif encrypt_force_on

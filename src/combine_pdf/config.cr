@@ -35,6 +35,13 @@ module CombinePDF
     property watermark : Watermark?
     # Chiffrement du livret de sortie (mot de passe + permissions).
     property encrypt : Encrypt?
+    # Mot de passe à essayer sur chaque PDF d'ENTRÉE chiffré
+    # (« owner-only protected » ou autres). Vide par défaut, ce qui
+    # suffit pour ouvrir les PDFs sans password à l'ouverture mais
+    # avec restrictions activées (cas le plus courant). Pour des
+    # PDFs avec password à l'ouverture, fournir-le ici ou via
+    # `crystal-combine-pdf --input-password=PWD`.
+    property input_password : String
     # Liste ordonnée des fichiers à assembler.
     property files : Array(FileEntry)
 
@@ -49,6 +56,7 @@ module CombinePDF
       @toc : Toc? = nil,
       @watermark : Watermark? = nil,
       @encrypt : Encrypt? = nil,
+      @input_password : String = "",
       @files : Array(FileEntry) = [] of FileEntry,
     )
     end

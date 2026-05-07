@@ -88,8 +88,10 @@ module CombinePDF
 
   # Loads a PDF file and returns it as a `PDF` instance.
   # Equivalent to `CombinePDF.load(path)` in Ruby.
-  def self.load(path : String) : PDF
-    PDF.from_file(path)
+  #
+  # `password` est utilisé si le PDF source est chiffré.
+  def self.load(path : String, password : String = "") : PDF
+    PDF.from_file(path, password: password)
   end
 
   # Parses raw PDF bytes (or a binary string) into a `PDF` instance.

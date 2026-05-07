@@ -52,9 +52,11 @@ module CombinePDF
     end
 
     # Reads `path`, renumbers every object, and queues its pages
-    # for the final tree.
-    def add(path : String) : Nil
-      reader = ::PDF::Reader.open(path)
+    # for the final tree. `password` est utilisé si le PDF source
+    # est chiffré (vide par défaut, ce qui suffit pour la majorité
+    # des PDFs « owner-only protected »).
+    def add(path : String, password : String = "") : Nil
+      reader = ::PDF::Reader.open(path, password: password)
 
       # Force the lazy reader to materialise every object referenced
       # by the xref. `Reader#objects` is a cache populated on demand,

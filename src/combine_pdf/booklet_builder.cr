@@ -18,6 +18,10 @@ module CombinePDF
     property override_owner_password : String? = nil
     property override_encrypt_level : String? = nil
     property override_encrypt_enabled : Bool? = nil
+    # Surcharge le `input_password:` du YAML pour ouvrir les PDFs
+    # sources chiffrés. Utile pour les workflows CI/CD qui ne veulent
+    # PAS écrire le mot de passe en clair dans le YAML.
+    property override_input_password : String? = nil
 
     def initialize(@config : Config, @base_dir : String)
     end
@@ -58,11 +62,12 @@ module CombinePDF
       # les objets attrape les erreurs Zlib/Filter qui surviendraient
       # plus tard pendant la fusion et donneraient un message
       # cryptique sans contexte de fichier.
+      input_pwd = effective_input_password
       bad_files = [] of Tuple(String, String)
       active.each do |entry|
         full = File.join(@base_dir, entry.path)
         begin
-          reader = ::PDF::Reader.open(full)
+          reader = ::PDF::Reader.open(full, password: input_pwd)
           total_size = reader.@trailer["Size"]?.try(&.as?(::PDF::Objects::Number)).try(&.to_i64.to_i32) || 0
           (1...total_size).each { |id| reader.resolve(::PDF::Objects::Reference.new(id)) }
         rescue ex : ::PDF::EncryptedPdfError
@@ -107,7 +112,7 @@ module CombinePDF
         # `add()`. Si la TOC n'est pas activée, le résultat est
         # identique à `Merger.merge`.
         merger = Merger.new
-        inputs.each { |path| merger.add(path) }
+        inputs.each { |path| merger.add(path, password: input_pwd) }
 
         if toc = @config.toc.try(&.page)
           insert_toc_page(merger, active, toc)
@@ -119,7 +124,7 @@ module CombinePDF
         tmp_numbered = File.tempname("ccp-numbered", ".pdf")
         begin
           if @config.numbering.enabled
-            partitions = active.map { |entry| ::PDF::Reader.open(File.join(@base_dir, entry.path)).page_count }
+            partitions = active.map { |entry| ::PDF::Reader.open(File.join(@base_dir, entry.path), password: input_pwd).page_count }
             toc_pages = (@config.toc.try(&.page).try(&.enabled)) ? 1 : 0
             AdvancedNumberer.new(@config, partitions, toc_pages).apply(tmp_merged, tmp_numbered)
           else
@@ -167,9 +172,10 @@ module CombinePDF
       # référence du merger.
       entries = [] of TocBuilder::Entry
       cumulative = 0
+      input_pwd = effective_input_password
       active.each do |file_entry|
         full = File.join(@base_dir, file_entry.path)
-        partition_pages = ::PDF::Reader.open(full).page_count
+        partition_pages = ::PDF::Reader.open(full, password: input_pwd).page_count
         target_ref = merger.page_refs[cumulative]?
         next unless target_ref
 
@@ -212,6 +218,13 @@ module CombinePDF
           idx - front + 1
         end
       end
+    end
+
+    # Mot de passe effectif pour ouvrir les PDFs sources chiffrés.
+    # Précédence : CLI (`override_input_password`) > YAML (`input_password`)
+    # > vide.
+    private def effective_input_password : String
+      @override_input_password || @config.input_password
     end
 
     # Applique le chiffrement au PDF si demandé par le YAML ou par

@@ -192,6 +192,137 @@ describe "Chiffrement combine-pdf (intégration)" do
       # Pas active par défaut
       content.should_not contain("\nencrypt:\n")
     end
+
+    it "génère une ligne input_password commentée" do
+      dir = File.join(SpecHelper::TMP_DIR, "init-input-pwd")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      CombinePDF::ConfigInitializer.init(dir)
+      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content.should contain("# input_password:")
+      content.should contain("# ─── PDFs sources chiffrés ──")
+      # Pas active par défaut
+      content.should_not contain("\ninput_password:")
+    end
+  end
+
+  describe "Décryptage de PDFs sources via input_password" do
+    it "ouvre un PDF chiffré listé dans `files:` quand input_password est fourni dans le YAML" do
+      dir = File.join(SpecHelper::TMP_DIR, "input-pwd-yaml")
+      Dir.mkdir_p(dir)
+
+      # PDF source chiffré
+      pdf = PDF::Document.new
+      pdf.encrypt(user_password: "src-pwd", level: :aes_256)
+      pdf.page do |p|
+        p.font("Helvetica", size: 12)
+        p.text("Encrypted source", at: {72, 720})
+      end
+      pdf.save(File.join(dir, "source.pdf"))
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        input_password: "src-pwd"
+        files:
+          - source.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      output = builder.build
+      File.size(output).should be > 0
+
+      # Le livret est en clair (pas de section encrypt:)
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(1)
+    end
+
+    it "surcharge CLI : override_input_password l'emporte sur le YAML" do
+      dir = File.join(SpecHelper::TMP_DIR, "input-pwd-cli-override")
+      Dir.mkdir_p(dir)
+
+      pdf = PDF::Document.new
+      pdf.encrypt(user_password: "real-pwd", level: :aes_128)
+      pdf.page do |p|
+        p.font("Helvetica", size: 12)
+        p.text("Encrypted", at: {72, 720})
+      end
+      pdf.save(File.join(dir, "source.pdf"))
+
+      # YAML déclare un MAUVAIS mot de passe ; on le surcharge en CLI
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        input_password: wrong-pwd
+        files:
+          - source.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      builder.override_input_password = "real-pwd"
+      output = builder.build
+      File.size(output).should be > 0
+    end
+
+    it "lève une erreur quand le PDF source est chiffré et qu'aucun mot de passe n'est fourni" do
+      dir = File.join(SpecHelper::TMP_DIR, "input-pwd-missing")
+      Dir.mkdir_p(dir)
+
+      pdf = PDF::Document.new
+      pdf.encrypt(user_password: "needed", level: :aes_256)
+      pdf.page do |p|
+        p.font("Helvetica", size: 12)
+        p.text("Encrypted", at: {72, 720})
+      end
+      pdf.save(File.join(dir, "source.pdf"))
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        files:
+          - source.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      expect_raises(Exception, /chiffré|Mot de passe/) do
+        builder.build
+      end
+    end
+  end
+
+  describe "Sous-commande decrypt (round-trip via CombinePDF.load + save)" do
+    {% for level in [:rc4_128, :aes_128, :aes_256] %}
+      it "déchiffre un PDF {{ level.id }} (CombinePDF.load avec password puis save sans encrypt)" do
+        dir = File.join(SpecHelper::TMP_DIR, "dec-rt-{{ level.id }}")
+        Dir.mkdir_p(dir)
+
+        # 1. Encrypt via le shard pdf
+        plain_path = File.join(dir, "plain.pdf")
+        SpecHelper.write_a4(plain_path)
+        pdf = CombinePDF.load(plain_path)
+        pdf.encrypt(user_password: "k", level: {{ level }})
+        encrypted_path = File.join(dir, "enc.pdf")
+        pdf.save(encrypted_path)
+
+        # 2. Decrypt
+        decrypted_path = File.join(dir, "dec.pdf")
+        loaded = CombinePDF.load(encrypted_path, password: "k")
+        loaded.save(decrypted_path)
+
+        # 3. Vérifier qu'il s'ouvre SANS mot de passe
+        reader = PDF::Reader.open(decrypted_path)
+        reader.page_count.should eq(1)
+      end
+    {% end %}
   end
 
   describe "Config::Encrypt" do

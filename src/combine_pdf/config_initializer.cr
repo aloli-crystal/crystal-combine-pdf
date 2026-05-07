@@ -589,6 +589,20 @@ module CombinePDF
     # de passe en clair dans un fichier potentiellement versionné.
     private def build_section_encrypt(s : IO, _options : InitOptions) : Nil
       s << <<-BLOCK
+        # ─── PDFs sources chiffrés ───────────────────────────────────
+        # Si certains PDFs listés dans `files:` sont chiffrés, fournir
+        # ici le mot de passe à essayer (utilisateur ou owner). Les
+        # PDFs « owner-only protected » (cas le plus courant : restrictions
+        # sans password à l'ouverture) marchent sans rien préciser.
+        #
+        # Comme pour la section `encrypt:` de sortie, vous pouvez laisser
+        # ce champ vide et fournir le mot de passe en CLI :
+        #   crystal-combine-pdf -I 'secret-d-entree'
+        # Les flags CLI surchargent toujours le YAML.
+        # input_password: ""
+
+        BLOCK
+      s << <<-BLOCK
         # ─── Chiffrement ──────────────────────────────────────────────
         # Activez ce bloc pour produire un livret chiffré.
         # `level` :

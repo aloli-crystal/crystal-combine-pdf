@@ -3,6 +3,64 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.30 — 2026-05-07
+
+**Sous-commande `decrypt` (symétrique d'`encrypt`) + ouverture de
+PDFs sources chiffrés.** Complète la boucle : on peut désormais
+chiffrer ET déchiffrer un PDF, et fusionner des PDFs sources
+chiffrés dans un livret.
+
+=== Added
+
+* **Sous-commande `crystal-combine-pdf decrypt FICHIER.pdf`** —
+  symétrique d'`encrypt` : ouvre un PDF chiffré (mot de passe via
+  `-u` ou `-I`) et le ré-écrit en clair (sans `/Encrypt`).
++
+[source]
+----
+crystal-combine-pdf decrypt protege.pdf -u 'secret' -o clair.pdf
+crystal-combine-pdf decrypt protege.pdf -u 'secret' -i --backup
+----
++
+Accepte aussi le mot de passe owner — le shard `pdf` essaie les
+deux automatiquement.
+
+* **Section `input_password:` dans `.crystal-combine-pdf.yml`** —
+  mot de passe à essayer sur chaque PDF source chiffré listé dans
+  `files:`. Vide par défaut (suffit pour les « owner-only protected »).
++
+[source,yaml]
+----
+input_password: "secret-source"  # ou laisser vide et fournir en CLI
+----
+
+* **Flag CLI `-I, --input-password=PWD`** — fournit le mot de passe
+  d'ouverture des PDFs sources sans l'écrire dans un YAML versionné.
+  Surcharge le YAML.
+
+* **`init` génère une ligne `input_password:` commentée** avec doc
+  sur le canal CLI alternatif.
+
+* **`CombinePDF.load(path, password: "...")`** — accepte un mot de
+  passe forwardé à `PDF::Reader.open`. Permet de fusionner des PDFs
+  chiffrés via l'API publique.
+
+* **`Merger#add(path, password: "...")`** — équivalent bas-niveau.
+
+=== Changed
+
+* Bump dépendance `aloli-crystal/pdf ~> 0.5.1` → `~> 0.5.2`
+  (corrige le crash AES sur le re-parsing du dict `/Encrypt` du
+  shard `pdf` ; nécessaire pour que `CombinePDF.load(...)` fonctionne
+  sur les PDFs AES).
+
+=== Tests
+
+* 7 nouveaux specs (decrypt round-trip 3 niveaux, ouverture de
+  PDFs sources chiffrés via YAML/CLI/override, init génère
+  `input_password:` commenté).
+* Suite globale : 109 examples, 0 failure.
+
 == v1.0.31.29 — 2026-05-07
 
 **Chiffrement de la sortie : sous-commande `encrypt` + section `encrypt:`

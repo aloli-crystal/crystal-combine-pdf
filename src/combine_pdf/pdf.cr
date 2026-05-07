@@ -49,10 +49,11 @@ module CombinePDF
     end
 
     # Builds a PDF from an existing file. Equivalent to the Ruby
-    # gem's `CombinePDF.load(path)`.
-    def self.from_file(path : String) : PDF
+    # gem's `CombinePDF.load(path)`. `password` est forwardé au
+    # `Merger#add` quand le fichier est chiffré.
+    def self.from_file(path : String, password : String = "") : PDF
       pdf = new
-      pdf.merger.add(path)
+      pdf.merger.add(path, password: password)
       pdf
     end
 

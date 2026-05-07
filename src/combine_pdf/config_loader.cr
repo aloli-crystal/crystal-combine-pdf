@@ -29,6 +29,7 @@ module CombinePDF
         toc: parse_toc(data["toc"]?),
         watermark: parse_watermark(data["watermark"]?),
         encrypt: parse_encrypt(data["encrypt"]?),
+        input_password: parse_str(data["input_password"]?, ""),
         files: parse_files_textually(raw),
       )
     end
