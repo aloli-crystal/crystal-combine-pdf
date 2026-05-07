@@ -36,6 +36,7 @@ compress_deep_quality : Symbol = :ebook
 encrypt_user_password : String? = nil
 encrypt_owner_password : String? = nil
 encrypt_level : String? = nil
+encrypt_permissions : String? = nil
 encrypt_force_off = false
 encrypt_force_on = false
 
@@ -230,6 +231,9 @@ parser = OptionParser.new do |p|
   end
   p.on("-w PWD", "--owner-password=PWD", "Mot de passe owner (défaut : identique à user)") do |v|
     encrypt_owner_password = v
+  end
+  p.on("-p LIST", "--permissions=LIST", "Permissions du PDF chiffré (csv : print,copy,modify,annotate). 'none' = tout interdit, 'all' = tout autorisé. Défaut : tout autorisé.") do |v|
+    encrypt_permissions = v
   end
   p.on("--no-encrypt", "Lors d'un `build` : désactive le chiffrement même si présent dans le YAML") do
     encrypt_force_off = true
@@ -496,6 +500,7 @@ if mode_encrypt
 
   user_pwd = (encrypt_user_password || "").as(String)
   owner_pwd = (encrypt_owner_password || user_pwd).as(String)
+  permissions = parse_permissions_list(encrypt_permissions)
 
   begin
     pdf = CombinePDF.load(input)
@@ -503,6 +508,7 @@ if mode_encrypt
       user_password: user_pwd,
       owner_password: owner_pwd,
       level: level_sym,
+      permissions: permissions,
     )
     pdf.save(output)
 
@@ -605,6 +611,9 @@ if positional.empty?
       builder.override_owner_password = encrypt_owner_password
       builder.override_encrypt_level = encrypt_level
       builder.override_input_password = input_password
+      if perms_csv = encrypt_permissions
+        builder.override_encrypt_permissions = perms_csv.split(',').map(&.strip).reject(&.empty?)
+      end
       if encrypt_force_off
         builder.override_encrypt_enabled = false
       elsif encrypt_force_on
@@ -633,6 +642,34 @@ remaining = positional[1..]
 # ────────────────────────────────────────────────────────────────────
 # Sous-commandes historiques
 # ────────────────────────────────────────────────────────────────────
+
+# Parse une liste CSV de permissions (`print,copy,modify,annotate`),
+# avec les raccourcis `none` (tout interdit) et `all` (tout autorisé,
+# valeur par défaut quand le flag est absent).
+def parse_permissions_list(raw : String?) : Array(::PDF::Security::Permission)
+  all_perms = [
+    ::PDF::Security::Permission::Print,
+    ::PDF::Security::Permission::Copy,
+    ::PDF::Security::Permission::Modify,
+    ::PDF::Security::Permission::Annotate,
+  ]
+  return all_perms if raw.nil? || raw.strip.empty?
+  return [] of ::PDF::Security::Permission if raw.downcase == "none"
+  return all_perms if raw.downcase == "all"
+
+  raw.split(',').compact_map do |name|
+    case name.strip.downcase
+    when "print"    then ::PDF::Security::Permission::Print
+    when "copy"     then ::PDF::Security::Permission::Copy
+    when "modify"   then ::PDF::Security::Permission::Modify
+    when "annotate" then ::PDF::Security::Permission::Annotate
+    else
+      STDERR.puts "Erreur : permission inconnue : #{name.strip.inspect}"
+      STDERR.puts "Attendu (csv) : print, copy, modify, annotate (ou 'none', 'all')."
+      exit 1
+    end
+  end
+end
 
 def build_options(font_size, margin, color_str, global_format, partition_format,
                   hide_partition_when_single, skip_pages) : CombinePDF::Options

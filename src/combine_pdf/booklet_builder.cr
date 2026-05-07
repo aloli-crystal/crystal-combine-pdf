@@ -18,6 +18,10 @@ module CombinePDF
     property override_owner_password : String? = nil
     property override_encrypt_level : String? = nil
     property override_encrypt_enabled : Bool? = nil
+    # Surcharge la liste de permissions du YAML (`encrypt.permissions`).
+    # `nil` = on garde les permissions du YAML (ou tout autorisé si
+    # le YAML n'en spécifie pas).
+    property override_encrypt_permissions : Array(String)? = nil
     # Surcharge le `input_password:` du YAML pour ouvrir les PDFs
     # sources chiffrés. Utile pour les workflows CI/CD qui ne veulent
     # PAS écrire le mot de passe en clair dans le YAML.
@@ -230,6 +234,29 @@ module CombinePDF
       @override_input_password || @config.input_password
     end
 
+    # Convertit une liste de noms de permissions (chaînes) en
+    # `Array(::PDF::Security::Permission)` pour le passer au shard
+    # `pdf`. Tolérant aux noms inconnus (ignorés) et aux raccourcis
+    # `none` (vide) et `all` (toutes les permissions).
+    private def map_permission_names(names : Array(String)) : Array(::PDF::Security::Permission)
+      all = [::PDF::Security::Permission::Print,
+             ::PDF::Security::Permission::Copy,
+             ::PDF::Security::Permission::Modify,
+             ::PDF::Security::Permission::Annotate]
+      return [] of ::PDF::Security::Permission if names.size == 1 && names.first.downcase == "none"
+      return all if names.size == 1 && names.first.downcase == "all"
+
+      names.compact_map do |name|
+        case name.to_s.downcase
+        when "print"    then ::PDF::Security::Permission::Print
+        when "copy"     then ::PDF::Security::Permission::Copy
+        when "modify"   then ::PDF::Security::Permission::Modify
+        when "annotate" then ::PDF::Security::Permission::Annotate
+        else                 nil
+        end
+      end
+    end
+
     # Mot de passe à utiliser pour ouvrir un fichier source précis.
     # Précédence : `entry.password` (per-file YAML) >
     # `effective_input_password` (global YAML/CLI).
@@ -266,11 +293,18 @@ module CombinePDF
       user_pwd = @override_user_password || enc.user_password
       owner_pwd = @override_owner_password || enc.owner_password || user_pwd
 
+      # Permissions : CLI override > YAML > tout autorisé
+      effective_perms = if cli_perms = @override_encrypt_permissions
+                          map_permission_names(cli_perms)
+                        else
+                          enc.permissions_for_pdf
+                        end
+
       pdf.encrypt(
         user_password: user_pwd,
         owner_password: owner_pwd,
         level: level_sym,
-        permissions: enc.permissions_for_pdf,
+        permissions: effective_perms,
         encrypt_metadata: enc.encrypt_metadata,
       )
     end

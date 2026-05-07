@@ -3,6 +3,53 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.32 — 2026-05-07
+
+**Flag CLI `-p, --permissions=LIST` + documentation
+modification/signatures.** Permet de prévenir la modification d'un
+PDF (sans empêcher la lecture) entièrement en CLI, et clarifie
+dans le README la différence entre chiffrement, permissions et
+signatures numériques.
+
+=== Added
+
+* **Flag CLI `-p, --permissions=LIST`** :
++
+[source,shell]
+----
+crystal-combine-pdf encrypt rapport.pdf -w "secret" -p print
+crystal-combine-pdf -p print,annotate                  # surcharge le YAML
+----
++
+Liste CSV de `print,copy,modify,annotate` ; raccourcis `none`
+(rien autorisé) et `all` (par défaut). Fonctionne pour la
+sous-commande `encrypt` autonome ET en surcharge du
+`encrypt.permissions:` du YAML pendant un `build`.
+
+* **`BookletBuilder#override_encrypt_permissions`** — propriété
+  publique pour piloter la surcharge depuis du code Crystal.
+
+=== Documentation
+
+* **README.adoc + README.fr.adoc** : nouvelle sous-section
+  *Empêcher la modification (sans empêcher la lecture)* qui détaille
+  la recette via owner password + permissions, le tableau des
+  permissions disponibles, et la mise en garde sur le modèle
+  *honor-system*.
+
+* **Section *Signatures numériques (PAdES) — roadmap*** : explique
+  la différence avec le chiffrement (cryptographie asymétrique vs
+  honor-system), les niveaux PAdES (B-B / B-T / B-LT / B-LTA), et
+  l'état actuel du shard `pdf` (lecture détecte `/Sig`, écriture
+  pas encore implémentée).
+
+=== Tests
+
+* 5 nouveaux specs (rétro-compat sans password sur 4 formes :
+  simple, avec titre, commenté, mixte ; permissions [], [print],
+  override CLI, raccourci 'none').
+* Suite globale : 124 examples, 0 failure.
+
 == v1.0.31.31 — 2026-05-07
 
 **Mot de passe par fichier dans `files:`** — chaque entrée du

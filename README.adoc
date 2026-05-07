@@ -337,6 +337,8 @@ Common options (inherited from `compress` / `gs`):
 * `--backup` (with `-i`): keeps the original as `.bak`
 * `-l rc4_128 | aes_128 | aes_256` (encrypt only, default `aes_256`)
 * `-u USER_PWD` user password, `-w OWNER_PWD` owner password
+* `-p LIST` permissions (csv: `print,copy,modify,annotate`;
+  shortcuts `none` / `all`. Default: `all`)
 
 ==== Encrypting the OUTPUT of a build
 
@@ -427,6 +429,101 @@ per-file `password:` entries **empty** in the file, and pass the
 secrets via CLI only. For CI/CD workflows, use environment
 variables and a shell wrapper.
 ====
+
+==== Preventing modification (without preventing reading)
+
+That's exactly what **permissions** do on the encryption side.
+The PDF is readable by everyone (empty user password), but Acrobat
+/ Foxit / Preview / pdftk refuse any modification until the user
+enters the **owner password**.
+
+Recipe:
+
+[source,yaml]
+----
+encrypt:
+  enabled: true
+  level: aes_256
+  user_password: ""            # ← empty: free read access
+  owner_password: "secret"     # ← required to modify
+  permissions: [print]         # ← only printing allowed
+----
+
+Or via CLI:
+
+[source,shell]
+----
+crystal-combine-pdf encrypt rapport.pdf -w "secret" -p print
+----
+
+Available permissions:
+
+[cols="1,3"]
+|===
+| Permission | Effect when listed
+
+| `print`    | Print the document (low + high res)
+| `copy`     | Select / copy text or images
+| `modify`   | Edit page content
+| `annotate` | Add or modify annotations (comments, highlights)
+|===
+
+CLI shortcuts: `none` (no permissions), `all` (every permission —
+equivalent to omitting the flag).
+
+[IMPORTANT]
+====
+**Trust model**. PDF permissions are *honor-system*: the spec asks
+viewers and editors to respect them, and Acrobat/Foxit/Preview/pdftk
+do. But a determined attacker can **strip `/Encrypt`** from a PDF;
+permissions are not cryptographically enforced.
+
+For cryptographic integrity protection, you need a **digital
+signature** (see below).
+====
+
+==== Digital signatures (PAdES) — roadmap
+
+Signatures detect any modification of the PDF using asymmetric
+cryptography:
+
+. The signer computes a SHA-256 / SHA-384 hash over the PDF bytes
+  (excluding the signature itself).
+. They encrypt that hash with their private key (PKCS#7 / CMS /
+  CAdES) and embed it in a `/Sig` dictionary inside the PDF.
+. Any verifier can recompute the hash and compare it with the hash
+  decrypted using the certificate's public key.
+. Any single-byte change invalidates the signature — Acrobat shows
+  it in red.
+
+Difference with encryption:
+
+[cols="1,1,1"]
+|===
+|                         | Encryption (`/Encrypt`) | Signature (`/Sig` PAdES)
+| Prevents reading        | ✅                      | ❌
+| Detects modification    | ⚠️ via permissions     | ✅ (cryptographic)
+| Proves authenticity     | ❌                      | ✅
+| Long-term archival      | ❌                      | ✅ (PAdES B-LTA)
+|===
+
+PAdES levels (ETSI EN 319 142):
+
+* **B-B** — basic signature (detached PKCS#7)
+* **B-T** — B-B + TSA timestamp
+* **B-LT** — B-T + long-term validation material (CRL/OCSP)
+* **B-LTA** — B-LT + archive timestamp (indefinitely renewable)
+
+Current state of `aloli-crystal/pdf`: reading detects `/Sig` but
+doesn't validate the signature; writing doesn't produce one. Support
+is on the roadmap (see `prod-crystal/crystal-combine-pdf/ROADMAP.adoc`
+§ "PAdES signatures"). Estimated effort: M for B-B (PKCS#7 via
+OpenSSL), L for B-T (TSA HTTP), XL for B-LT/LTA (CRL/OCSP collection,
+archival).
+
+In the meantime: for a PDF that needs to prove its integrity in a
+legal context, sign it **after** the build with a third-party tool
+(`gpg --detach-sign`, Adobe Acrobat, eSign Suite, etc.).
 
 == Sub-commands historiques
 

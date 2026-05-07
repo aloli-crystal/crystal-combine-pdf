@@ -299,6 +299,102 @@ describe "Chiffrement combine-pdf (intégration)" do
     end
   end
 
+  describe "Rétrocompatibilité (cas général sans mot de passe)" do
+    it "parse `- foo.pdf` à l'identique de toujours" do
+      yaml = <<-YAML
+        output: out.pdf
+        files:
+          - foo.pdf
+        YAML
+      config = CombinePDF::ConfigLoader.load_string(yaml)
+      config.files.size.should eq(1)
+      entry = config.files.first
+      entry.path.should eq("foo.pdf")
+      entry.title.should be_nil
+      entry.excluded.should be_false
+      entry.password.should be_nil
+    end
+
+    it "parse `- foo.pdf: \"Titre\"` à l'identique de toujours" do
+      yaml = <<-YAML
+        output: out.pdf
+        files:
+          - rapport.pdf: "Rapport annuel"
+          - autre.pdf: "Sous-section"
+        YAML
+      config = CombinePDF::ConfigLoader.load_string(yaml)
+      config.files.size.should eq(2)
+      config.files[0].path.should eq("rapport.pdf")
+      config.files[0].title.should eq("Rapport annuel")
+      config.files[0].password.should be_nil
+      config.files[1].path.should eq("autre.pdf")
+      config.files[1].title.should eq("Sous-section")
+      config.files[1].password.should be_nil
+    end
+
+    it "parse `# - foo.pdf` (entrée commentée) à l'identique de toujours" do
+      yaml = <<-YAML
+        output: out.pdf
+        files:
+          - actif.pdf
+          # - inactif.pdf
+        YAML
+      config = CombinePDF::ConfigLoader.load_string(yaml)
+      config.files.size.should eq(2)
+      config.files[0].path.should eq("actif.pdf")
+      config.files[0].excluded.should be_false
+      config.files[1].path.should eq("inactif.pdf")
+      config.files[1].excluded.should be_true
+    end
+
+    it "construit un livret 100% en clair sans aucune section encrypt: ni input_password" do
+      dir = File.join(SpecHelper::TMP_DIR, "no-pwd-everywhere")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "a.pdf"))
+      SpecHelper.write_a4(File.join(dir, "b.pdf"))
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: livret.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        files:
+          - a.pdf
+          - b.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      output = builder.build
+      File.size(output).should be > 0
+
+      # PDF en clair : ouverture sans password
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(2)
+    end
+
+    it "mélange entrées simples + inline mapping dans la même section files:" do
+      yaml = <<-YAML
+        output: out.pdf
+        files:
+          - public.pdf
+          - rapport.pdf: "Rapport"
+          - {path: secret.pdf, password: shh}
+          # - exclu.pdf
+        YAML
+      config = CombinePDF::ConfigLoader.load_string(yaml)
+      config.files.size.should eq(4)
+      config.files[0].path.should eq("public.pdf")
+      config.files[0].password.should be_nil
+      config.files[1].title.should eq("Rapport")
+      config.files[1].password.should be_nil
+      config.files[2].path.should eq("secret.pdf")
+      config.files[2].password.should eq("shh")
+      config.files[3].path.should eq("exclu.pdf")
+      config.files[3].excluded.should be_true
+    end
+  end
+
   describe "Per-file password (inline mapping `- {path: ..., password: ...}`)" do
     it "ouvre plusieurs PDFs sources avec des mots de passe différents" do
       dir = File.join(SpecHelper::TMP_DIR, "per-file-pwd")
@@ -450,6 +546,106 @@ describe "Chiffrement combine-pdf (intégration)" do
       CombinePDF::ConfigRefresher.refresh(dir)
       refreshed = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
       refreshed.should contain("# - {path: ghost.pdf, password: secret}")
+    end
+  end
+
+  describe "Permissions (prévenir la modification, sans empêcher la lecture)" do
+    it "permissions vides ([]) → modification interdite (P=-3904)" do
+      dir = File.join(SpecHelper::TMP_DIR, "perms-none")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "in.pdf"))
+
+      pdf = CombinePDF.load(File.join(dir, "in.pdf"))
+      pdf.encrypt(
+        user_password: "",
+        owner_password: "owner",
+        level: :aes_256,
+        permissions: [] of PDF::Security::Permission,
+      )
+      output = File.join(dir, "out.pdf")
+      pdf.save(output)
+
+      # Le PDF s'ouvre SANS mot de passe (user_password vide)
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(1)
+
+      # Mais /P signale toutes les permissions verrouillées
+      enc_dict = reader.@trailer["Encrypt"]?
+      enc_dict.should_not be_nil
+    end
+
+    it "permissions [print] → impression ok, modification interdite" do
+      dir = File.join(SpecHelper::TMP_DIR, "perms-print-only")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "in.pdf"))
+
+      pdf = CombinePDF.load(File.join(dir, "in.pdf"))
+      pdf.encrypt(
+        user_password: "",
+        owner_password: "owner",
+        level: :aes_256,
+        permissions: [PDF::Security::Permission::Print],
+      )
+      output = File.join(dir, "out.pdf")
+      pdf.save(output)
+
+      # Lecture libre
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(1)
+    end
+
+    it "BookletBuilder : override_encrypt_permissions surcharge le YAML" do
+      dir = File.join(SpecHelper::TMP_DIR, "perms-override")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "in.pdf"))
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        encrypt:
+          enabled: true
+          level: aes_256
+          owner_password: owner
+          permissions: [print, copy, modify, annotate]   # tout autorisé dans le YAML
+        files:
+          - in.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      builder.override_encrypt_permissions = ["print"] # CLI surcharge → seulement print
+      output = builder.build
+
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(1)
+    end
+
+    it "shortcut 'none' dans override_encrypt_permissions" do
+      dir = File.join(SpecHelper::TMP_DIR, "perms-shortcut-none")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "in.pdf"))
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        encrypt:
+          enabled: true
+          owner_password: owner
+        files:
+          - in.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      builder.override_encrypt_permissions = ["none"]
+      output = builder.build
+
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(1)
     end
   end
 

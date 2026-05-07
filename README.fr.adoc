@@ -340,6 +340,8 @@ Options communes (héritées de `compress` / `gs`) :
 * `--backup` (avec `-i`) : sauvegarde l'original en `.bak`
 * `-l rc4_128 | aes_128 | aes_256` (encrypt seulement, défaut `aes_256`)
 * `-u USER_PWD` mot de passe utilisateur, `-w OWNER_PWD` mot de passe owner
+* `-p LIST` permissions (csv : `print,copy,modify,annotate` ;
+  raccourcis `none` / `all`. Défaut : `all`)
 
 ==== Chiffrer la SORTIE d'un build
 
@@ -430,6 +432,103 @@ les `password:` per-file **vides** dans le fichier, et fournissez les
 secrets uniquement en CLI. Pour les workflows CI/CD, utilisez des
 variables d'environnement et un wrapper shell.
 ====
+
+==== Empêcher la modification (sans empêcher la lecture)
+
+C'est exactement le rôle des **permissions** côté
+chiffrement. Le PDF est lisible par tous (mot de passe
+utilisateur vide), mais Acrobat / Foxit / Preview / pdftk refusent
+toute modification tant que l'utilisateur n'a pas saisi le **mot
+de passe owner**.
+
+Recette :
+
+[source,yaml]
+----
+encrypt:
+  enabled: true
+  level: aes_256
+  user_password: ""            # ← vide : ouverture libre
+  owner_password: "secret"     # ← obligatoire pour modifier
+  permissions: [print]         # ← seul l'impression est autorisée
+----
+
+Ou en CLI :
+
+[source,shell]
+----
+crystal-combine-pdf encrypt rapport.pdf -w "secret" -p print
+----
+
+Permissions disponibles :
+
+[cols="1,3"]
+|===
+| Permission | Effet quand listée
+
+| `print`    | Imprimer le document (basse + haute résolution)
+| `copy`     | Sélectionner / copier du texte ou des images
+| `modify`   | Éditer le contenu de la page
+| `annotate` | Ajouter ou modifier des annotations (commentaires, surbrillance)
+|===
+
+Raccourcis (CLI uniquement) : `none` (aucune permission), `all`
+(toutes — équivalent à omettre le flag).
+
+[IMPORTANT]
+====
+**Modèle de confiance**. Les permissions PDF sont *honor-system* :
+le spec demande aux visualiseurs et éditeurs de les respecter, et
+Acrobat/Foxit/Preview/pdftk le font effectivement. Mais un attaquant
+déterminé peut **stripper le `/Encrypt`** d'un PDF ; les permissions
+ne sont pas cryptographiquement appliquées.
+
+Pour une protection cryptographique de l'intégrité, il faut une
+**signature numérique** (cf. plus bas).
+====
+
+==== Signatures numériques (PAdES) — roadmap
+
+Les signatures détectent toute modification du PDF en s'appuyant
+sur la cryptographie asymétrique :
+
+. Le signataire calcule un hash SHA-256 / SHA-384 sur les octets du
+  PDF (à l'exclusion de la signature elle-même).
+. Il chiffre ce hash avec sa clé privée (PKCS#7 / CMS / CAdES) et
+  l'embarque dans un dictionnaire `/Sig` du PDF.
+. Tout vérificateur peut recalculer le hash et le comparer au hash
+  déchiffré avec la clé publique du certificat.
+. La moindre modification (un seul octet) invalide la signature —
+  Acrobat l'affiche en rouge.
+
+Différence avec le chiffrement :
+
+[cols="1,1,1"]
+|===
+|                          | Chiffrement (`/Encrypt`) | Signature (`/Sig` PAdES)
+| Empêche la lecture       | ✅                       | ❌
+| Détecte la modification  | ⚠️ via permissions      | ✅ (cryptographique)
+| Prouve l'authenticité    | ❌                       | ✅
+| Long-term archival       | ❌                       | ✅ (PAdES B-LTA)
+|===
+
+Niveaux PAdES (ETSI EN 319 142) :
+
+* **B-B** — signature de base (PKCS#7 détaché)
+* **B-T** — B-B + horodatage TSA
+* **B-LT** — B-T + matériel de validation à long terme (CRL/OCSP)
+* **B-LTA** — B-LT + horodatage d'archive (renouvelable indéfiniment)
+
+État actuel d'`aloli-crystal/pdf` : la lecture détecte les `/Sig`
+mais ne valide pas la signature ; l'écriture n'en produit pas. Le
+support est sur la roadmap (cf.
+`prod-crystal/crystal-combine-pdf/ROADMAP.adoc` § « Signatures PAdES »).
+Effort estimé : M pour B-B (PKCS#7 via OpenSSL), L pour B-T (TSA HTTP),
+XL pour B-LT/LTA (collecte CRL/OCSP, archival).
+
+En attendant : pour un PDF qui doit prouver son intégrité dans un
+contexte légal, signer **après** le build avec un outil tiers
+(`gpg --detach-sign`, Adobe Acrobat, eSign Suite, etc.).
 
 == Sous-commandes historiques
 
