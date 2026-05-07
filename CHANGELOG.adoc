@@ -3,6 +3,61 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.31 — 2026-05-07
+
+**Mot de passe par fichier dans `files:`** — chaque entrée du
+tableau peut désormais embarquer son propre mot de passe via la
+syntaxe inline mapping YAML :
+
+[source,yaml]
+----
+files:
+  - public.pdf                                  # entrée simple
+  - rapport.pdf: "Rapport"                      # avec titre
+  - {path: confidentiel.pdf, password: secret}  # avec mot de passe
+  - {name: backup.pdf, pass: autre, title: "Annexe"}
+----
+
+Permet d'assembler un livret dont les sources ont chacune un mot
+de passe différent — cas réel : un compositeur qui rassemble plusieurs
+partitions chiffrées par leurs ayants-droit.
+
+=== Added
+
+* **`Config::FileEntry#password : String?`** — nouveau champ
+  optionnel. Précédence pour ouvrir un PDF source :
+  `entry.password` > `input_password` (global YAML) >
+  `--input-password` CLI > vide.
+
+* **Inline mapping dans `files:`** : `- {key: value, ...}`. Alias
+  acceptés pour la lisibilité :
++
+--
+* `path` ≡ `name` ≡ `file`
+* `title` ≡ `label`
+* `password` ≡ `pass` ≡ `pwd`
+--
+
+* **`ConfigRefresher` préserve les inline mappings** lors d'un
+  `refresh` : les lignes `- {path: x, password: y}` sont conservées
+  mot-pour-mot ; un fichier disparu est commenté en
+  `# - {path: x, password: y}` au lieu d'être supprimé.
+
+=== Documentation
+
+* **README.adoc et README.fr.adoc** : nouvelle section *Encryption*
+  / *Chiffrement* documentant les trois canaux (sous-commandes
+  autonomes, YAML, CLI), les niveaux RC4-128/AES-128/AES-256, et
+  les recommandations de sécurité (ne pas stocker les mots de
+  passe en clair dans un YAML versionné).
+
+=== Tests
+
+* 6 nouveaux specs (multi-PDFs avec passwords différents, alias
+  syntaxiques, FileEntry.password nil par défaut, refresh préserve
+  inline + commente disparu).
+* Suite globale : 115 examples, 0 failure.
+
 == v1.0.31.30 — 2026-05-07
 
 **Sous-commande `decrypt` (symétrique d'`encrypt`) + ouverture de

@@ -98,10 +98,16 @@ module CombinePDF
     #              YAML (`# - foo.pdf`). Conservée pour que `--refresh`
     #              ne réintroduise pas un fichier que l'utilisateur a
     #              explicitement écarté.
+    # `password` : mot de passe spécifique à ce fichier source quand
+    #              il est chiffré. `nil` = on retombe sur
+    #              `Config#input_password` (global). Permet d'avoir
+    #              plusieurs PDFs chiffrés avec des mots de passe
+    #              différents dans un même livret.
     record FileEntry,
       path : String,
       title : String? = nil,
-      excluded : Bool = false do
+      excluded : Bool = false,
+      password : String? = nil do
       # Libellé à afficher dans les bookmarks / TOC. Préfère `title`
       # si défini, sinon dérive du nom de fichier.
       def display_title : String

@@ -241,12 +241,42 @@ numbering:
 #   opacity: 0.15
 #   rotation: 45
 
+# Encrypt the OUTPUT booklet (password-protected).
+# encrypt:
+#   enabled: true
+#   level: aes_256          # rc4_128 | aes_128 | aes_256
+#   user_password: ""       # blank = no password to open
+#   owner_password: ""      # blank or nil = identical to user
+#   permissions: [print, copy, modify, annotate]
+
+# Password tried on every encrypted source PDF (global default).
+# Override per-entry via the inline mapping syntax in `files:` below.
+# input_password: ""
+
 files:
   - couverture.pdf
   - partition1.pdf: "Allegro — C. Debussy"
   - partition2.pdf: "Adagio — F. Chopin"
   # - brouillon-2025.pdf
+  # Encrypted source PDFs with their own password (inline mapping):
+  - {path: confidentiel.pdf, password: secret}
+  - {name: backup.pdf, pass: other-pwd, title: "Secured annex"}
 ----
+
+[NOTE]
+====
+*Security*: leave passwords **empty** in the YAML when it's
+versioned in Git. Pass them on the CLI:
+
+[source,shell]
+----
+crystal-combine-pdf -u 'output-pwd' -w 'owner-pwd'  # output encryption
+crystal-combine-pdf -I 'global-source-pwd'           # source decryption
+----
+
+CLI flags always override the YAML. For booklets where each source
+has its own password, use the inline mapping syntax above.
+====
 
 === Position vocabulary
 
@@ -280,6 +310,123 @@ When `include_in_numbering: false` (default), neither the front nor
 the back cover pages display a number, and the booklet's first
 content page is numbered "1". `%total%` reflects the *content* total
 (not including covers).
+
+=== Encryption
+
+The `aloli-crystal/pdf` shard (≥ 0.5.2) implements the PDF spec's
+"Standard Security Handler" (ISO 32000-1 and 32000-2 § 7.6.4) for
+both reading and writing, with no external dependency. This shard
+exposes those capabilities at three levels: standalone subcommands,
+YAML section, and CLI flags.
+
+==== Standalone sub-commands
+
+[source,shell]
+----
+crystal-combine-pdf encrypt rapport.pdf -u "secret" -l aes_256
+crystal-combine-pdf decrypt protege.pdf -u "secret" -i --backup
+----
+
+* `encrypt`: encrypt an arbitrary PDF (RC4-128, AES-128 or AES-256).
+* `decrypt`: symmetric — produces a copy without `/Encrypt`.
+
+Common options (inherited from `compress` / `gs`):
+
+* `-o FILE` or `-i` (in-place) or auto-named output (`*-encrypted.pdf`,
+  `*-decrypted.pdf`) if neither is set
+* `--backup` (with `-i`): keeps the original as `.bak`
+* `-l rc4_128 | aes_128 | aes_256` (encrypt only, default `aes_256`)
+* `-u USER_PWD` user password, `-w OWNER_PWD` owner password
+
+==== Encrypting the OUTPUT of a build
+
+`encrypt:` section in `.crystal-combine-pdf.yml`:
+
+[source,yaml]
+----
+encrypt:
+  enabled: true                  # `false` disables the section
+  level: aes_256                 # rc4_128 | aes_128 | aes_256
+  user_password: "open-me"       # empty = no password to open
+  owner_password: "permissions"  # empty or nil = identical to user
+  permissions: [print]           # absent = everything granted
+  encrypt_metadata: true
+----
+
+Available levels:
+
+[cols="1,1,3"]
+|===
+| Level      | V/R | Compatibility
+
+| `rc4_128`  | 2/3 | Acrobat ≥ 5 (1999), legacy only (RC4 is broken)
+| `aes_128`  | 4/4 | Acrobat ≥ 7 (2005), CryptFilter `AESV2`
+| `aes_256`  | 5/6 | Acrobat ≥ X / PDF 2.0 (2012), default
+|===
+
+CLI overrides (take precedence over YAML):
+
+[source,shell]
+----
+crystal-combine-pdf -u "secret"            # output user_password
+crystal-combine-pdf -w "owner-pwd"         # owner_password
+crystal-combine-pdf -l aes_128             # level
+crystal-combine-pdf --encrypt              # turn on without YAML section
+crystal-combine-pdf --no-encrypt           # disable even if YAML enables it
+----
+
+==== Reading encrypted source PDFs
+
+Global case (one password tried on every encrypted source):
+
+[source,yaml]
+----
+input_password: "source-secret"
+files:
+  - confidential-1.pdf
+  - confidential-2.pdf
+----
+
+CLI equivalent (avoid storing the password in versioned YAML):
+
+[source,shell]
+----
+crystal-combine-pdf -I "source-secret"
+# or: --input-password=source-secret
+----
+
+Per-file case (each source with its own password) — inline mapping:
+
+[source,yaml]
+----
+files:
+  - public.pdf                                       # simple entry
+  - report.pdf: "Annual report"                      # with title
+  - {path: confidential.pdf, password: "secret-A"}   # with password
+  - {name: backup.pdf, pass: "secret-B", title: "Annex"}
+----
+
+Aliases accepted:
+
+* `path` ≡ `name` ≡ `file`
+* `title` ≡ `label`
+* `password` ≡ `pass` ≡ `pwd`
+
+Precedence: `entry.password` (per-file YAML) > `input_password`
+(global YAML) > `--input-password` CLI > empty.
+
+A source PDF's owner password works just as well as the user
+password (the `pdf` shard tries both automatically via Algorithm 7
+for V<5 and Algorithm 2.A for V=5).
+
+[NOTE]
+====
+*Security recommendation*: if the YAML is versioned (Git), leave
+the `user_password`, `owner_password`, `input_password` fields and
+per-file `password:` entries **empty** in the file, and pass the
+secrets via CLI only. For CI/CD workflows, use environment
+variables and a shell wrapper.
+====
 
 == Sub-commands historiques
 

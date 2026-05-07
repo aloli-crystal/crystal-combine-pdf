@@ -241,21 +241,22 @@ module CombinePDF
         end
 
         # Entrée active : `  - foo.pdf` ou `  - foo.pdf: "Titre"`
+        # ou inline mapping `- {path: foo.pdf, password: "x"}`
         if md = line.match(/^\s*-\s+(.+)$/)
-          path, title = parse_entry_body(md[1])
-          entries << Config::FileEntry.new(path: path, title: title, excluded: false)
+          path, title, password = parse_entry_body(md[1])
+          entries << Config::FileEntry.new(path: path, title: title, excluded: false, password: password)
           idx += 1
           next
         end
 
         # Entrée commentée : `  # - foo.pdf` ou `# - foo.pdf: "Titre"`
         if md = line.match(/^\s*#\s*-\s+(.+)$/)
-          path, title = parse_entry_body(md[1])
+          path, title, password = parse_entry_body(md[1])
           # Ne pas confondre avec un commentaire libre qui contient un
           # tiret. Heuristique : `path` doit ressembler à un nom de
           # fichier (extension ou contient `/` ou `.`).
           if looks_like_path?(path)
-            entries << Config::FileEntry.new(path: path, title: title, excluded: true)
+            entries << Config::FileEntry.new(path: path, title: title, excluded: true, password: password)
           end
           idx += 1
           next
@@ -275,12 +276,33 @@ module CombinePDF
       entries
     end
 
-    # Décompose `foo.pdf` ou `foo.pdf: "Titre"` en `{path, title}`.
+    # Décompose le corps d'une entrée du tableau `files:` en
+    # `{path, title, password}`.
+    #
+    # Trois formes acceptées :
+    #
+    # ```
+    # - foo.pdf                                    # path nu
+    # - foo.pdf: "Titre"                           # path + titre
+    # - {path: foo.pdf, title: "T", password: "p"} # inline mapping YAML
+    # ```
+    #
+    # L'inline mapping accepte plusieurs alias pour la lisibilité :
+    # `path | name | file`, `title | label`, `password | pass | pwd`.
+    #
     # Si le chemin lui-même est entre guillemets (utile pour les noms
     # à espaces ou caractères spéciaux), on les retire — comportement
     # cohérent avec le parseur YAML standard.
-    private def parse_entry_body(body : String) : Tuple(String, String?)
+    private def parse_entry_body(body : String) : Tuple(String, String?, String?)
       body = body.rstrip
+
+      # Forme inline mapping `{path: x, title: "Y", password: "Z"}`.
+      # Délégué au parseur YAML standard pour gérer guillemets,
+      # échappements, types, etc.
+      if body.starts_with?('{') && body.ends_with?('}')
+        return parse_inline_mapping(body)
+      end
+
       # Détecte un chemin cité : `"..."` ou `'...'` éventuellement
       # suivi de `: titre`.
       if body.starts_with?('"') || body.starts_with?('\'')
@@ -297,9 +319,9 @@ module CombinePDF
           if rest.starts_with?(':')
             title_raw = rest[1..].strip
             title_raw = strip_quotes(title_raw)
-            return {path, title_raw.empty? ? nil : title_raw}
+            return {path, title_raw.empty? ? nil : title_raw, nil}
           end
-          return {path, nil}
+          return {path, nil, nil}
         end
       end
 
@@ -309,10 +331,40 @@ module CombinePDF
         path = body[0, i].strip
         rest = body[(i + 1)..].strip
         rest = strip_quotes(rest)
-        {path, rest.empty? ? nil : rest}
+        {path, rest.empty? ? nil : rest, nil}
       else
-        {body.strip, nil}
+        {body.strip, nil, nil}
       end
+    end
+
+    # Parse une entrée inline-mapping `{path: ..., title: ..., password: ...}`
+    # en s'appuyant sur le parseur YAML standard. Tolérant aux alias :
+    # `path | name | file`, `title | label`, `password | pass | pwd`.
+    #
+    # Lève `Exception` (avec message clair) si la chaîne n'est pas un
+    # mapping YAML valide ou si `path` est absent.
+    private def parse_inline_mapping(body : String) : Tuple(String, String?, String?)
+      data = YAML.parse(body)
+      mapping = data.as_h?
+      raise "Entrée inline invalide (mapping YAML attendu) : #{body}" unless mapping
+
+      lookup = ->(keys : Array(String)) {
+        keys.each do |k|
+          if v = mapping[YAML::Any.new(k)]?
+            s = v.as_s?
+            return s if s
+          end
+        end
+        nil.as(String?)
+      }
+
+      path = lookup.call(["path", "name", "file"])
+      raise "Entrée inline sans `path` (alias acceptés : `name`, `file`) : #{body}" if path.nil? || path.empty?
+
+      title = lookup.call(["title", "label"])
+      password = lookup.call(["password", "pass", "pwd"])
+
+      {path, title, password}
     end
 
     private def strip_quotes(s : String) : String

@@ -1,3 +1,5 @@
+require "yaml"
+
 module CombinePDF
   # Met à jour la section `files:` d'un `.crystal-combine-pdf.yml`
   # existant après un ajout/retrait de PDF dans le dossier.
@@ -259,6 +261,13 @@ module CombinePDF
       if i = body.index("  #")
         body = body[0, i].rstrip
       end
+
+      # Forme inline mapping `{path: x, title: y, password: z}` :
+      # on délègue au parseur YAML pour extraire le path proprement.
+      if body.starts_with?('{') && body.ends_with?('}')
+        return extract_path_from_inline(body)
+      end
+
       if i = body.index(':')
         path = body[0, i].strip
         rest = body[(i + 1)..].strip
@@ -279,6 +288,26 @@ module CombinePDF
         end
         {path, nil}
       end
+    end
+
+    # Extrait `path` d'un inline mapping pour les besoins du refresh.
+    # Retourne `{path, title}` ; `title` est ignoré par le refresh,
+    # mais on respecte la signature du tuple.
+    private def extract_path_from_inline(body : String) : Tuple(String, String?)
+      data = YAML.parse(body)
+      mapping = data.as_h?
+      return {body, nil} unless mapping
+      ["path", "name", "file"].each do |k|
+        if v = mapping[YAML::Any.new(k)]?
+          if s = v.as_s?
+            return {s, nil}
+          end
+        end
+      end
+      {body, nil}
+    rescue
+      # YAML invalide → pas une inline mapping, traiter comme path nu
+      {body, nil}
     end
   end
 end

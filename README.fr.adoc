@@ -243,12 +243,43 @@ numbering:
 #   opacity: 0.15
 #   rotation: 45
 
+# Chiffrement de la SORTIE (livret protégé par mot de passe).
+# encrypt:
+#   enabled: true
+#   level: aes_256          # rc4_128 | aes_128 | aes_256
+#   user_password: ""       # ouverture (vide = pas de password à l'open)
+#   owner_password: ""      # restrictions (vide = identique à user)
+#   permissions: [print, copy, modify, annotate]
+
+# Mot de passe ESSAYÉ sur les PDFs sources chiffrés (cas global).
+# Surchargeable au cas par cas dans `files:` ci-dessous.
+# input_password: ""
+
 files:
   - couverture.pdf
   - partition1.pdf: "Allegro — C. Debussy"
   - partition2.pdf: "Adagio — F. Chopin"
   # - brouillon-2025.pdf
+  # PDFs sources chiffrés avec leur propre mot de passe (inline mapping) :
+  - {path: confidentiel.pdf, password: secret}
+  - {name: backup.pdf, pass: autre-mdp, title: "Annexe sécurisée"}
 ----
+
+[NOTE]
+====
+*Sécurité* : laissez les mots de passe **vides** dans le YAML
+quand celui-ci est versionné dans Git. Fournissez-les en CLI :
+
+[source,shell]
+----
+crystal-combine-pdf -u 'mdp-sortie' -w 'mdp-owner'  # chiffrement de sortie
+crystal-combine-pdf -I 'mdp-source-global'          # ouverture sources
+----
+
+Les flags CLI surchargent toujours le YAML. Pour un livret avec des
+sources qui ont chacune un mot de passe différent, utilisez la
+syntaxe inline mapping `- {path: x.pdf, password: y}` ci-dessus.
+====
 
 === Vocabulaire des positions
 
@@ -282,6 +313,123 @@ Quand `include_in_numbering: false` (défaut), ni les pages de
 couverture avant ni les pages de couverture arrière n'affichent de
 numéro, et la première page de contenu du livret porte le numéro 1.
 `%total%` reflète le total *utile* (sans les couvertures).
+
+=== Chiffrement
+
+Le shard `aloli-crystal/pdf` (≥ 0.5.2) gère le « Standard Security
+Handler » du spec PDF (ISO 32000-1 et 32000-2 § 7.6.4) en lecture ET
+écriture, sans dépendance externe. `crystal-combine-pdf` expose ces
+capacités à trois niveaux : sous-commandes autonomes, section YAML,
+flags CLI.
+
+==== Sous-commandes autonomes
+
+[source,shell]
+----
+crystal-combine-pdf encrypt rapport.pdf -u "secret" -l aes_256
+crystal-combine-pdf decrypt protege.pdf -u "secret" -i --backup
+----
+
+* `encrypt` : chiffre un PDF arbitraire (RC4-128, AES-128 ou AES-256).
+* `decrypt` : symétrique — produit une version sans `/Encrypt`.
+
+Options communes (héritées de `compress` / `gs`) :
+
+* `-o FICHIER` ou `-i` (in-place) ou nom de sortie auto (`*-encrypted.pdf`,
+  `*-decrypted.pdf`) si rien n'est précisé
+* `--backup` (avec `-i`) : sauvegarde l'original en `.bak`
+* `-l rc4_128 | aes_128 | aes_256` (encrypt seulement, défaut `aes_256`)
+* `-u USER_PWD` mot de passe utilisateur, `-w OWNER_PWD` mot de passe owner
+
+==== Chiffrer la SORTIE d'un build
+
+Section `encrypt:` du `.crystal-combine-pdf.yml` :
+
+[source,yaml]
+----
+encrypt:
+  enabled: true                  # `false` désactive la section
+  level: aes_256                 # rc4_128 | aes_128 | aes_256
+  user_password: "ouvre-moi"     # vide = pas de mot de passe à l'open
+  owner_password: "permissions"  # vide ou nil = identique à user
+  permissions: [print]           # absent = tout autorisé
+  encrypt_metadata: true
+----
+
+Niveaux disponibles :
+
+[cols="1,1,3"]
+|===
+| Niveau     | V/R | Compatibilité
+
+| `rc4_128`  | 2/3 | Acrobat ≥ 5 (1999), legacy uniquement (RC4 est cassé)
+| `aes_128`  | 4/4 | Acrobat ≥ 7 (2005), CryptFilter `AESV2`
+| `aes_256`  | 5/6 | Acrobat ≥ X / PDF 2.0 (2012), défaut
+|===
+
+Surcharges CLI (priorité sur le YAML) :
+
+[source,shell]
+----
+crystal-combine-pdf -u "secret"            # user_password de sortie
+crystal-combine-pdf -w "owner-pwd"         # owner_password
+crystal-combine-pdf -l aes_128             # niveau
+crystal-combine-pdf --encrypt              # active sans la section YAML
+crystal-combine-pdf --no-encrypt           # désactive même si YAML l'active
+----
+
+==== Lire des PDFs sources chiffrés
+
+Cas global (un seul mot de passe pour tous les PDFs sources chiffrés) :
+
+[source,yaml]
+----
+input_password: "secret-source"
+files:
+  - confidentiel-1.pdf
+  - confidentiel-2.pdf
+----
+
+CLI équivalent (utile pour ne pas écrire le mot de passe en Git) :
+
+[source,shell]
+----
+crystal-combine-pdf -I "secret-source"
+# ou : --input-password=secret-source
+----
+
+Cas par fichier (chacun son mot de passe) — syntaxe inline mapping :
+
+[source,yaml]
+----
+files:
+  - public.pdf                                     # entrée simple
+  - rapport.pdf: "Rapport annuel"                  # avec titre
+  - {path: confidentiel.pdf, password: "secret-A"} # avec mot de passe
+  - {name: backup.pdf, pass: "secret-B", title: "Annexe"}
+----
+
+Alias acceptés :
+
+* `path` ≡ `name` ≡ `file`
+* `title` ≡ `label`
+* `password` ≡ `pass` ≡ `pwd`
+
+Précédence : `entry.password` (per-file YAML) > `input_password`
+(global YAML) > `--input-password` CLI > vide.
+
+Le mot de passe owner d'un PDF source fonctionne aussi bien que le
+mot de passe utilisateur (le shard `pdf` essaie les deux automatiquement
+via Algorithm 7 pour V<5 et Algorithm 2.A pour V=5).
+
+[NOTE]
+====
+*Recommandation sécurité* : si le YAML est versionné (Git), laissez
+les champs `user_password`, `owner_password`, `input_password` et
+les `password:` per-file **vides** dans le fichier, et fournissez les
+secrets uniquement en CLI. Pour les workflows CI/CD, utilisez des
+variables d'environnement et un wrapper shell.
+====
 
 == Sous-commandes historiques
 

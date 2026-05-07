@@ -299,6 +299,160 @@ describe "Chiffrement combine-pdf (intégration)" do
     end
   end
 
+  describe "Per-file password (inline mapping `- {path: ..., password: ...}`)" do
+    it "ouvre plusieurs PDFs sources avec des mots de passe différents" do
+      dir = File.join(SpecHelper::TMP_DIR, "per-file-pwd")
+      Dir.mkdir_p(dir)
+
+      # Trois sources : deux chiffrées avec passwords différents +
+      # une en clair.
+      pdf_a = PDF::Document.new
+      pdf_a.encrypt(user_password: "pwd-A", level: :aes_256)
+      pdf_a.page { |p| p.font("Helvetica", size: 12); p.text("Source A", at: {72, 720}) }
+      pdf_a.save(File.join(dir, "a.pdf"))
+
+      pdf_b = PDF::Document.new
+      pdf_b.encrypt(user_password: "pwd-B", level: :aes_128)
+      pdf_b.page { |p| p.font("Helvetica", size: 12); p.text("Source B", at: {72, 720}) }
+      pdf_b.save(File.join(dir, "b.pdf"))
+
+      SpecHelper.write_a4(File.join(dir, "c.pdf"))
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        files:
+          - {path: a.pdf, password: pwd-A}
+          - {name: b.pdf, pass: pwd-B, title: "Section B"}
+          - c.pdf
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      output = builder.build
+      File.size(output).should be > 0
+
+      # Le livret final est en clair (pas de section encrypt:)
+      reader = PDF::Reader.open(output)
+      reader.page_count.should eq(3)
+    end
+
+    it "entry.password l'emporte sur input_password global" do
+      dir = File.join(SpecHelper::TMP_DIR, "per-file-vs-global")
+      Dir.mkdir_p(dir)
+
+      pdf = PDF::Document.new
+      pdf.encrypt(user_password: "specific", level: :aes_256)
+      pdf.page { |p| p.font("Helvetica", size: 12); p.text("X", at: {72, 720}) }
+      pdf.save(File.join(dir, "specific.pdf"))
+
+      # Le YAML déclare un input_password GLOBAL incorrect, mais
+      # l'entrée surcharge avec le bon mot de passe.
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        paper_size: a4
+        cover: {mode: none}
+        numbering: {enabled: false}
+        input_password: wrong-global
+        files:
+          - {path: specific.pdf, password: specific}
+        YAML
+
+      builder = CombinePDF::BookletBuilder.from_dir(dir)
+      output = builder.build
+      File.size(output).should be > 0
+    end
+
+    it "accepte les alias name/file pour path et pass/pwd pour password" do
+      dir = File.join(SpecHelper::TMP_DIR, "alias-syntax")
+      Dir.mkdir_p(dir)
+
+      pdf = PDF::Document.new
+      pdf.encrypt(user_password: "k", level: :aes_128)
+      pdf.page { |p| p.font("Helvetica", size: 12); p.text("X", at: {72, 720}) }
+      pdf.save(File.join(dir, "doc.pdf"))
+
+      # Toutes les variantes d'alias devraient fonctionner
+      ["{name: doc.pdf, pwd: k}",
+       "{file: doc.pdf, pass: k}",
+       "{path: doc.pdf, password: k, label: \"Titre\"}"].each do |inline|
+        File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+          output: out.pdf
+          title: ""
+          paper_size: a4
+          cover: {mode: none}
+          numbering: {enabled: false}
+          files:
+            - #{inline}
+          YAML
+
+        builder = CombinePDF::BookletBuilder.from_dir(dir)
+        output = builder.build
+        File.size(output).should be > 0
+      end
+    end
+
+    it "FileEntry.password est nil pour une entrée simple" do
+      dir = File.join(SpecHelper::TMP_DIR, "no-pwd-entry")
+      Dir.mkdir_p(dir)
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        files:
+          - foo.pdf
+          - bar.pdf: "Title"
+        YAML
+
+      config = CombinePDF::ConfigLoader.load(File.join(dir, ".crystal-combine-pdf.yml"))
+      config.files.size.should eq(2)
+      config.files[0].path.should eq("foo.pdf")
+      config.files[0].password.should be_nil
+      config.files[1].path.should eq("bar.pdf")
+      config.files[1].title.should eq("Title")
+      config.files[1].password.should be_nil
+    end
+  end
+
+  describe "ConfigRefresher avec inline mapping" do
+    it "préserve une ligne `- {path: x, password: y}` lors d'un refresh" do
+      dir = File.join(SpecHelper::TMP_DIR, "refresh-inline")
+      Dir.mkdir_p(dir)
+      SpecHelper.write_a4(File.join(dir, "secure.pdf"))
+
+      original = <<-YAML
+        output: out.pdf
+        title: ""
+        files:
+          - {path: secure.pdf, password: secret}
+        YAML
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), original)
+
+      CombinePDF::ConfigRefresher.refresh(dir)
+      refreshed = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      # La ligne inline est préservée mot-pour-mot
+      refreshed.should contain("- {path: secure.pdf, password: secret}")
+    end
+
+    it "commente une entrée inline disparue (préserve la syntaxe)" do
+      dir = File.join(SpecHelper::TMP_DIR, "refresh-inline-gone")
+      Dir.mkdir_p(dir)
+      # Pas de fichier ; refresh va commenter
+
+      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        output: out.pdf
+        title: ""
+        files:
+          - {path: ghost.pdf, password: secret}
+        YAML
+
+      CombinePDF::ConfigRefresher.refresh(dir)
+      refreshed = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      refreshed.should contain("# - {path: ghost.pdf, password: secret}")
+    end
+  end
+
   describe "Sous-commande decrypt (round-trip via CombinePDF.load + save)" do
     {% for level in [:rc4_128, :aes_128, :aes_256] %}
       it "déchiffre un PDF {{ level.id }} (CombinePDF.load avec password puis save sans encrypt)" do
