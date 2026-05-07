@@ -116,5 +116,20 @@ module CombinePDF
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),
   #            filigrane via `watermark`.
-  VERSION = "1.0.31.26"
+  # Version lue automatiquement depuis `shard.yml` au compile-time.
+  # Évite la désynchronisation entre la constante Crystal et le
+  # `version:` du shard.yml (bug récurrent v0.5.x : tous les PDFs
+  # produits par v1.0.31.27 → v1.0.31.32 ont écrit « 1.0.31.26 »
+  # dans /Producer parce que la constante était hardcodée).
+  #
+  # `{% %}` fait tourner le code au compile-time. `read_file` lit le
+  # `shard.yml` (chemin relatif au fichier `version.cr`) et on extrait
+  # la valeur de `version:`.
+  VERSION = {{
+              (read_file("#{__DIR__}/../../shard.yml")
+                .lines
+                .find(&.starts_with?("version:")) || "version: 0.0.0")
+                .gsub(/^version:\s*/, "")
+                .chomp
+            }}
 end

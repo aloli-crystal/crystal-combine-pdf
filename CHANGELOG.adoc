@@ -3,6 +3,35 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.34 — 2026-05-07
+
+=== Fixed
+
+* **`/Producer` du PDF généré inscrivait toujours « 1.0.31.26 ».**
+  La constante `CombinePDF::VERSION` était hardcodée dans
+  `src/combine_pdf/version.cr` et n'était pas mise à jour lors des
+  releases (oubli systématique dans le workflow de bump). Conséquence :
+  toutes les versions de v1.0.31.27 à v1.0.31.33 produisaient des PDFs
+  dont le `/Producer` indiquait « crystal-combine-pdf 1.0.31.26 », et
+  un binaire compilé localement à partir de la dernière production
+  affichait `crystal-combine-pdf --version` → `1.0.31.26`.
++
+Fix : `VERSION` est désormais lue **au compile-time** directement
+depuis `shard.yml` via le macro `read_file`. Plus jamais de
+désynchronisation possible entre la source de vérité (`shard.yml`)
+et la constante embarquée dans le binaire.
+
+* **Spec de non-régression** : `spec/version_spec.cr` parse `shard.yml`
+  à l'exécution et compare `CombinePDF::VERSION` à la valeur YAML —
+  garantit que la lecture macro reste cohérente.
+
+=== Notes
+
+Si vous aviez compilé localement une version récente de
+`crystal-combine-pdf` (binaire `~/.local/bin/crystal-combine-pdf`
+typiquement) et constaté un `--version` figé à 1.0.31.26, c'est ce
+bug. Recompilez à partir de v1.0.31.34.
+
 == v1.0.31.33 — 2026-05-07
 
 === Changed
