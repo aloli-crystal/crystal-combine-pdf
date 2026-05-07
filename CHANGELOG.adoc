@@ -3,6 +3,18 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.33 — 2026-05-07
+
+=== Changed
+
+* Bump dépendance `aloli-crystal/pdf ~> 0.5.2` → `~> 0.5.3`
+  qui corrige un bug de pages vides sur les PDFs normalisés via
+  Ghostscript (cas typique : un PDF d'origine chiffré qu'on a
+  passé par `crystal-combine-pdf gs FICHIER.pdf -i --backup` pour
+  le rendre lisible). Le content stream du PDF gs-normalisé porte
+  un `/Length` qui pointe sur un objet *compressé* (object stream
+  PDF 1.5+) que notre parser ne savait pas résoudre.
+
 == v1.0.31.32 — 2026-05-07
 
 **Flag CLI `-p, --permissions=LIST` + documentation
