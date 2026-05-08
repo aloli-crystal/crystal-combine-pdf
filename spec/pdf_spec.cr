@@ -161,9 +161,60 @@ describe CombinePDF::PDF do
       pdf.author = "Philippe Nénert"
       pdf.save(dest)
 
-      bytes = File.read(dest)
-      bytes.includes?("Recueil").should be_true
-      bytes.includes?("Philippe").should be_true
+      # Le PDF contient des octets binaires non UTF-8 → on travaille
+      # sur des Bytes plutôt que des String pour éviter les erreurs
+      # de validation UTF-8 du moteur regex Crystal.
+      bytes = File.read(dest).to_slice
+
+      # Helper : recherche une sous-séquence ASCII dans les bytes
+      includes_ascii = ->(needle : String) {
+        n = needle.to_slice
+        found = false
+        (0..bytes.size - n.size).each do |i|
+          if bytes[i, n.size] == n
+            found = true
+            break
+          end
+        end
+        found
+      }
+
+      # Titre pure ASCII → string littérale brute (pas de BOM)
+      includes_ascii.call("Recueil").should be_true
+      # Auteur avec « é » → encodé hex `/Author <FEFF...>` avec BOM
+      # UTF-16BE. On vérifie la présence de la séquence ASCII « FEFF »
+      # qui marque le BOM dans la représentation hex du PDF.
+      includes_ascii.call("/Author <FEFF").should be_true
+    end
+
+    it "préserve les accents dans /Author vu par pdfinfo (non-régression UTF-8)" do
+      # Bug observé v1.0.31.34 : `Str.new(...)` écrivait les octets UTF-8
+      # bruts dans la string littérale `(Philippe Nénert)`. Sans BOM,
+      # pdfinfo / Acrobat interprétaient en PDFDocEncoding (~ Latin-1)
+      # → mojibake « Philippe NÃ©nert ». Le fix : `Str.unicode(...)`
+      # qui encode en UTF-16BE avec BOM dès qu'un caractère > 127
+      # est présent.
+      unless Process.find_executable("pdfinfo")
+        pending! "pdfinfo (poppler) non installé — test sautée"
+      end
+      a = File.join(SpecHelper::TMP_DIR, "utf8-in.pdf")
+      dest = File.join(SpecHelper::TMP_DIR, "utf8-dest.pdf")
+      SpecHelper.write_a4(a, page_count: 1)
+
+      pdf = CombinePDF.load(a)
+      pdf.title = "Mes partitions été 2026 — édition spéciale"
+      pdf.author = "Philippe Nénert"
+      pdf.save(dest)
+
+      stdout_buf = IO::Memory.new
+      Process.run("pdfinfo", [dest], output: stdout_buf, error: Process::Redirect::Close)
+      info = stdout_buf.to_s
+
+      # pdfinfo (poppler) décode correctement l'UTF-16BE avec BOM
+      info.should match(/^Author:\s+Philippe Nénert\s*$/m)
+      info.should match(/^Title:\s+Mes partitions été 2026 — édition spéciale\s*$/m)
+      # On vérifie aussi explicitement l'absence du mojibake
+      info.should_not contain("Ã©")
     end
   end
 

@@ -218,13 +218,21 @@ module CombinePDF
 
       # /Info — Producer is always set ; Title/Author only when the
       # caller surfaced them via `CombinePDF::PDF#title=` / `#author=`.
+      #
+      # On utilise `Str.unicode(...)` (et non `Str.new(...)`) pour
+      # forcer l'encodage UTF-16BE avec BOM `\xFE\xFF` quand le texte
+      # contient des caractères non-ASCII. Sans ça, les octets UTF-8
+      # bruts sont interprétés en PDFDocEncoding (~ Latin-1) par les
+      # readers (pdfinfo, Acrobat, Preview), produisant du mojibake
+      # type « Philippe NÃ©nert » au lieu de « Philippe Nénert ».
+      # Cf. spec PDF ISO 32000-1 § 7.9.2.2 et § 14.3.3.
       info_dict = ::PDF::Objects::Dictionary.new
-      info_dict["Producer"] = ::PDF::Objects::Str.new("crystal-combine-pdf #{CombinePDF::VERSION}")
+      info_dict["Producer"] = ::PDF::Objects::Str.unicode("crystal-combine-pdf #{CombinePDF::VERSION}")
       if t = @metadata_title
-        info_dict["Title"] = ::PDF::Objects::Str.new(t)
+        info_dict["Title"] = ::PDF::Objects::Str.unicode(t)
       end
       if a = @metadata_author
-        info_dict["Author"] = ::PDF::Objects::Str.new(a)
+        info_dict["Author"] = ::PDF::Objects::Str.unicode(a)
       end
       @objects << ::PDF::Objects::Indirect.new(info_id, info_dict)
 

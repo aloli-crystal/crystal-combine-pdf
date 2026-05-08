@@ -3,6 +3,32 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.35 — 2026-05-08
+
+=== Fixed
+
+* **`/Author` et `/Title` du PDF généré : mojibake sur les caractères
+  accentués.** `pdfinfo` affichait « Philippe NÃ©nert » au lieu de
+  « Philippe Nénert » : le `Merger` écrivait les octets UTF-8 bruts
+  (`0xC3 0xA9` pour `é`) dans la string littérale `(Philippe Nénert)`
+  via `Str.new(...)`, sans BOM ; les readers (pdfinfo, Acrobat,
+  Preview, qpdf) interprétaient en PDFDocEncoding (~ Latin-1) →
+  mojibake.
++
+Fix : utilisation de `Str.unicode(...)` qui détecte automatiquement
+les caractères non-ASCII et bascule en encodage UTF-16BE avec BOM
+`\xFE\xFF`, conformément au spec PDF ISO 32000-1 § 7.9.2.2 et
+§ 14.3.3.
++
+Concerne `/Producer`, `/Title` et `/Author` du dictionnaire `/Info`
+écrit par `MergedDocumentWriter`. Le shard `aloli-crystal/pdf`
+faisait déjà le bon encodage de son côté ; seul `Merger` (de
+crystal-combine-pdf) avait le bug.
+
+* Spec de non-régression : génère un PDF avec un auteur accentué,
+  shell-out à `pdfinfo` (poppler) pour vérifier l'absence de mojibake
+  et la présence du nom correct dans `Author:`.
+
 == v1.0.31.34 — 2026-05-07
 
 === Fixed
