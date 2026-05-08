@@ -316,6 +316,40 @@ if !positional.empty?
   when "decrypt"
     mode_decrypt = true
     positional = positional[1..]
+  when "help", "-h", "--help"
+    # `help [sous-commande]` — UX standard. Sans argument c'est
+    # l'aide globale (équivalent à --help). Avec argument on filtre
+    # le banner sur la sous-commande demandée pour pointer vite à
+    # la bonne section.
+    sub = positional[1]?
+    if sub.nil? || sub.empty?
+      puts parser
+      exit 0
+    end
+    full = parser.to_s
+    # Sections sont séparées par des lignes blanches. On cherche la
+    # section qui mentionne la sous-commande dans son titre ou son
+    # premier paragraphe et on l'imprime, plus un rappel.
+    target = sub.downcase
+    valid_subs = %w(init refresh build compress gs encrypt decrypt)
+    unless valid_subs.includes?(target)
+      STDERR.puts "Aide indisponible pour « #{sub} » (sous-commandes : #{valid_subs.join(", ")})."
+      STDERR.puts "Utilisez `crystal-combine-pdf help` pour l'aide globale."
+      exit 1
+    end
+    # Imprimer le banner global puis souligner la sous-commande
+    puts full
+    puts ""
+    puts "─── Focus : #{target} ───"
+    full.lines.each_with_index do |line, i|
+      if line.includes?("crystal-combine-pdf #{target}")
+        # Imprimer cette ligne et les ~12 lignes qui la décrivent
+        puts ""
+        full.lines[i, 12].each { |l| puts l.rstrip }
+        break
+      end
+    end
+    exit 0
   end
 end
 

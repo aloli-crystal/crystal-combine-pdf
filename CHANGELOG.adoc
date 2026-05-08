@@ -3,6 +3,31 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.36 — 2026-05-08
+
+=== Added
+
+* **Sous-commande `help`** (convention UX standard) :
++
+[source,shell]
+----
+crystal-combine-pdf help              # aide globale (équivalent --help)
+crystal-combine-pdf help init         # focus sur la sous-commande init
+crystal-combine-pdf help encrypt      # focus sur encrypt
+----
++
+Refuse explicitement avec un message clair les sous-commandes
+inconnues : `crystal-combine-pdf help foobar` →
+*« Aide indisponible pour « foobar » (sous-commandes : init,
+refresh, build, compress, gs, encrypt, decrypt). »*
++
+Accepte aussi `-h` et `--help` comme alias positionnels (en plus du
+flag global `--help` déjà géré par `OptionParser`).
+
+* Spec d'intégration `help_subcommand_spec.cr` qui compile le
+  binaire CLI et shell-out aux quatre variantes (`help`, `help init`,
+  `help foobar`, `-h`/`--help`).
+
 == v1.0.31.35 — 2026-05-08
 
 === Fixed
