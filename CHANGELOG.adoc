@@ -3,6 +3,41 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.37 — 2026-05-08
+
+=== Added
+
+* **Flag `-L` / `--linearize` sur la sous-commande `compress`**
+  pour produire un PDF *Fast Web View* (ISO 32000-1 § F).
++
+[source,shell]
+----
+crystal-combine-pdf compress livret.pdf -L              # → livret-compressed.pdf linéarisé
+crystal-combine-pdf compress livret.pdf -i --backup -L  # in-place
+----
++
+Implémentation : shell-out à `qpdf --linearize` après la passe de
+compression Flate. Choisi pragmatiquement plutôt qu'une
+implémentation native (estimée 2-4 semaines + ~2000 lignes ;
+shell-out qpdf = robustesse 100 % du jour 1, dépendance externe
+acceptable au même titre que `gs` pour `--deep`).
++
+**À ne pas combiner avec un PDF déjà signé** (PAdES) : la
+réorganisation des octets invalide la signature. La doc
+recommande de linéariser AVANT de signer.
++
+Le résultat est vérifiable avec `pdfinfo` :
+`Optimized: no` → `Optimized: yes`.
+
+* `CombinePDF::Compressor.qpdf_available?` — méthode publique pour
+  tester la présence de `qpdf` dans le PATH avant d'appeler
+  `compress(linearize: true)`. Retourne `Bool`, mise en cache
+  après le premier appel.
+
+* Spec d'intégration `linearize_spec.cr` (3 specs, skip si qpdf
+  non installé). Vérifie la présence de `/Linearized` dans les
+  premiers octets du PDF produit.
+
 == v1.0.31.36 — 2026-05-08
 
 === Added

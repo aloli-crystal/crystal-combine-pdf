@@ -74,12 +74,23 @@ module CombinePDF
     # `deep_quality` : preset de qualité Ghostscript quand `deep:
     # true`. `:screen` (72 dpi), `:ebook` (150 dpi, défaut),
     # `:printer` (300 dpi), `:prepress` (300 dpi color-preserving).
+    #
+    # `linearize` : si `true`, post-traite la sortie via `qpdf
+    # --linearize` pour produire un PDF *Fast Web View* (ISO 32000-1
+    # § F). Utile pour servir le PDF en streaming HTTP — le viewer
+    # peut afficher la page 1 dès qu'il a reçu son préfixe sans
+    # attendre le téléchargement complet. Sans intérêt pour les
+    # PDFs téléchargés en entier puis lus localement (livret,
+    # rapport archivé, document signé, etc.). Nécessite `qpdf`
+    # installé. ⚠ NE PAS linéariser un PDF *déjà signé* (PAdES) :
+    # la réorganisation des octets invalide la signature.
     def compress(
       input : String,
       output : String,
       backup : Bool = false,
       deep : Bool = false,
       deep_quality : ::Ghostscript::Quality | Symbol = :ebook,
+      linearize : Bool = false,
     ) : Result
       raise ArgumentError.new("Fichier introuvable : #{input}") unless File.exists?(input)
 
@@ -95,6 +106,12 @@ module CombinePDF
         compress_flate(input, target)
       end
 
+      # Linéarisation post-compression. On la fait APRÈS compress
+      # parce que qpdf a son propre filtre Flate ; le faire avant
+      # serait gaspillé. On écrit dans un fichier temp puis on
+      # remplace `target`.
+      linearize_in_place(target) if linearize
+
       if in_place
         FileUtils.cp(input, "#{input}.bak") if backup
         File.rename(target, input)
@@ -105,6 +122,52 @@ module CombinePDF
 
       after_size = File.size(after_path).to_i64
       Result.new(before_size, after_size, page_count)
+    end
+
+    # Linéarise `path` en place via `qpdf --linearize`. Lève
+    # `Error` si `qpdf` est absent du PATH ou si la conversion
+    # échoue. Utilise un fichier temporaire pour ne pas écraser
+    # `path` en cas d'erreur du sous-process.
+    private def linearize_in_place(path : String) : Nil
+      unless qpdf_available?
+        raise Error.new(
+          "qpdf binary not found in PATH (requis pour --linearize). " \
+          "Install it with `brew install qpdf` (macOS), " \
+          "`pkg install qpdf` (FreeBSD) or " \
+          "`apt install qpdf` (Debian/Ubuntu)."
+        )
+      end
+
+      tmp = "#{path}.linearize.tmp.#{Process.pid}"
+      err_buf = IO::Memory.new
+      status = Process.run(
+        "qpdf",
+        ["--linearize", path, tmp],
+        output: Process::Redirect::Close,
+        error: err_buf,
+      )
+      unless status.success?
+        File.delete(tmp) if File.exists?(tmp)
+        raise Error.new(
+          "qpdf --linearize a échoué (exit #{status.exit_code}). " \
+          "stderr : #{err_buf.to_s.lines.first?.try(&.strip)}"
+        )
+      end
+      File.rename(tmp, path)
+    end
+
+    # Vérifie une seule fois la présence de `qpdf` dans le PATH.
+    # Cache de classe pour éviter le `Process.find_executable`
+    # répété sur de gros lots.
+    @@qpdf_available : Bool? = nil
+
+    def qpdf_available? : Bool
+      if cached = @@qpdf_available
+        return cached
+      end
+      result = !Process.find_executable("qpdf").nil?
+      @@qpdf_available = result
+      result
     end
 
     # Recompression Flate + GC implicite via `Merger` (pur Crystal).

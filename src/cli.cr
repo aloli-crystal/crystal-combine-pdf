@@ -31,6 +31,7 @@ compress_in_place = false
 compress_backup = false
 compress_deep = false
 compress_deep_quality : Symbol = :ebook
+compress_linearize = false
 
 # ─── Drapeaux de chiffrement (mode `encrypt` ET surcharge de build)
 encrypt_user_password : String? = nil
@@ -103,11 +104,14 @@ parser = OptionParser.new do |p|
         dossier courant : assemble, numérote, ajoute filigrane,
         page de titre + sommaire cliquable.
 
-      crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]
+      crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i] [-L]
         Réduit la taille d'un PDF (recompression Flate uniforme +
         garbage collection des objets orphelins). Gain typique 30-80
         %. Pas de downsampling d'images en pur Crystal — voir le
-        futur flag --deep pour ce besoin (via aloli-crystal/ghostscript).
+        flag --deep pour ce besoin (via aloli-crystal/ghostscript).
+        Avec `-L / --linearize`, produit un PDF *Fast Web View*
+        (ISO 32000-1 § F) pour streaming HTTP — nécessite `qpdf`
+        installé.
 
       crystal-combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i]
         Normalise un PDF via Ghostscript. Utile quand le parser
@@ -208,6 +212,7 @@ parser = OptionParser.new do |p|
   p.on("-i", "--in-place", "Réécrit le fichier d'entrée (avec un .tmp atomique)") { compress_in_place = true }
   p.on("--backup", "Avec --in-place : conserve l'original sous .bak") { compress_backup = true }
   p.on("--deep", "Compression profonde via gs (downsampling images, JPEG, fonts). Nécessite ghostscript installé.") { compress_deep = true }
+  p.on("-L", "--linearize", "Linéarise le PDF (Fast Web View, ISO 32000-1 § F) — affichage progressif sur HTTP. Nécessite `qpdf` installé. Ne pas combiner avec un PDF déjà signé PAdES.") { compress_linearize = true }
   p.on("--deep-quality=Q", "Preset gs : screen | ebook (défaut) | printer | prepress") do |v|
     compress_deep_quality = case v.downcase
                             when "screen"   then :screen
@@ -410,8 +415,13 @@ if mode_compress
       backup: compress_backup,
       deep: compress_deep,
       deep_quality: compress_deep_quality,
+      linearize: compress_linearize,
     )
-    puts "✓ #{result}#{compress_deep ? " [deep, gs:#{compress_deep_quality}]" : ""}"
+    annotations = [] of String
+    annotations << "deep, gs:#{compress_deep_quality}" if compress_deep
+    annotations << "linearized" if compress_linearize
+    suffix = annotations.empty? ? "" : " [#{annotations.join(", ")}]"
+    puts "✓ #{result}#{suffix}"
     puts "  pages: #{result.pages}"
     if compress_in_place
       puts "  écrit dans : #{input}#{compress_backup ? " (original sauvegardé : #{input}.bak)" : ""}"
