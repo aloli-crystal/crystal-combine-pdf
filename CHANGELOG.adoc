@@ -3,6 +3,19 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.39 — 2026-06-05
+
+=== Changed
+
+* **Aligned on `pdf ~> 1.6`** (was `~> 0.5.3`) and `watermark ~> 0.1.5`.
+  Levels combine-pdf onto the same `pdf` major as the rest of the ALOLI
+  PDF suite (validator, signer), so the tools can be compiled together
+  under the unified `alolipdf` binary. The `pdf` core API
+  (`PDF::Objects::*`, `Reader`, `Security`, `Encryption`, `Writer`,
+  `ConfigInitializer`) is backward-compatible across 0.5 → 1.6: **no code
+  change** was needed, all 137 specs green and ameba clean against
+  pdf 1.6.0.
+
 == v1.0.31.38 — 2026-06-05
 
 === Added
