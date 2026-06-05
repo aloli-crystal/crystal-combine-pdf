@@ -3,6 +3,21 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.40 — 2026-06-05
+
+=== Modifié
+
+* **Point d'entrée CLI appelable `CombinePDF::Cli.run(argv) : Int32`**
+  (`src/combine_pdf/cli.cr`). Toute la CLI quitte le script top-level
+  `src/cli.cr` pour devenir une méthode, exécutable à la fois comme
+  binaire `crystal-combine-pdf` autonome ET en interne depuis le binaire
+  unifié `alolipdf` (aloli-crystal/pdf-tools) — sans shell-out.
+  `src/cli.cr` n'est plus qu'un wrapper d'une ligne. Les helpers
+  `parse_permissions_list` / `build_options` deviennent des méthodes de
+  module ; les sorties des blocs OptionParser capturés passent par une
+  exception interne `Halt` (le reste reste en `return`). Comportement
+  inchangé — 137 specs au vert, ameba propre.
+
 == v1.0.31.39 — 2026-06-05
 
 === Modifié
