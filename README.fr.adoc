@@ -314,6 +314,31 @@ couverture avant ni les pages de couverture arrière n'affichent de
 numéro, et la première page de contenu du livret porte le numéro 1.
 `%total%` reflète le total *utile* (sans les couvertures).
 
+=== Signature (`sign` / `verify`)
+
+Après avoir assemblé un document, on peut le signer (PAdES) sans quitter
+l'outil. `sign` / `verify` délèguent au binaire `pdf-sign` de
+`aloli-crystal/pdf-signature` — tout ce qui suit le verbe est transmis
+tel quel, donc l'ensemble des drapeaux (niveaux B-B…B-LTA, horodatage
+RFC 3161, LTV, PKCS#11/HSM) est exactement celui de pdf-sign.
+
+[source,shell]
+----
+export P12_PASS=…                     # la phrase de passe vit dans une var d'env
+crystal-combine-pdf merge a.pdf b.pdf -o livret.pdf
+crystal-combine-pdf sign -i livret.pdf -o livret-signe.pdf \
+  -c signataire.p12 -p P12_PASS -l b-lt -t https://tsa.example/tsr
+crystal-combine-pdf verify livret-signe.pdf -a confiance.pem
+----
+
+* La phrase de passe / le PIN est donné comme **nom d'une variable
+  d'environnement** (`-p P12_PASS`), jamais comme valeur — aucun secret
+  n'atteint argv.
+* `pdf-sign` est résolu depuis `$COMBINE_PDF_PDFSIG` (chemin explicite)
+  ou comme `pdf-sign` sur le `PATH`. Le `pdfsig` de poppler (sans
+  rapport) n'est jamais appelé. Installation :
+  `ln -s …/pdf-signature/bin/pdf-sign ~/bin/pdf-sign`.
+
 === Chiffrement
 
 Le shard `aloli-crystal/pdf` (≥ 0.5.2) gère le « Standard Security

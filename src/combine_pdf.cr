@@ -4,6 +4,7 @@ require "ghostscript"
 
 require "./combine_pdf/version"
 require "./combine_pdf/options"
+require "./combine_pdf/signer"
 require "./combine_pdf/numberer"
 require "./combine_pdf/merged_document_writer"
 require "./combine_pdf/merger"

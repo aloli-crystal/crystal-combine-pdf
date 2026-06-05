@@ -3,6 +3,25 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.38 — 2026-06-05
+
+=== Added
+
+* **Sous-commandes `sign` / `verify`** — signer (PAdES) ou vérifier un
+  document directement depuis combine-pdf, l'étape naturelle après
+  `merge` / `assemble`. Ce sont de fins relais vers le binaire `pdf-sign`
+  de `aloli-crystal/pdf-signature` : tout ce qui suit le verbe lui est
+  transmis tel quel, donc toute la surface de drapeaux (niveaux
+  B-B…B-LTA, horodatage RFC 3161, LTV, PKCS#11/HSM) est exactement celle
+  de pdf-sign — aucune duplication, toujours synchronisé.
+* **Sécurité** : la phrase de passe / le PIN est passé comme *nom* d'une
+  variable d'environnement (jamais sa valeur), donc aucun secret
+  n'apparaît dans argv.
+* **Résolution du binaire** robuste face à la collision de noms : on
+  cherche `pdf-sign` (via `$COMBINE_PDF_PDFSIG` ou le `PATH`) et JAMAIS
+  le `pdfsig` de poppler (outil différent). Nouveau module
+  `CombinePDF::Signer` ; specs de résolution.
+
 == v1.0.31.37 — 2026-05-08
 
 === Added

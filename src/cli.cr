@@ -1,6 +1,17 @@
 require "option_parser"
 require "./combine_pdf"
 
+# `sign` / `verify` are thin forwarders to the ALOLI signing binary
+# (aloli-crystal/pdf-signature) — the natural last step after assembling
+# a document. The signer owns the entire flag surface, so we delegate
+# BEFORE our own OptionParser runs : no flag duplication, always in sync.
+# The passphrase is passed through as an env-var NAME, never a value, so
+# no secret reaches argv. See `combine_pdf/signer.cr` (incl. how the
+# ALOLI binary is resolved without hitting poppler's `pdfsig`).
+if (sub = ARGV[0]?) && (sub == "sign" || sub == "verify")
+  exit CombinePDF::Signer.forward(sub, ARGV[1..])
+end
+
 # crystal-combine-pdf CLI.
 #
 # Mode déclaratif (recommandé) :
@@ -137,6 +148,15 @@ parser = OptionParser.new do |p|
       number FICHIER                Numérote les pages d'un PDF existant
       merge FICHIER1 FICHIER2 ...   Concatène plusieurs PDF
       assemble FICHIER1 FICHIER2 .. Merge + numérotation en une commande
+
+    Signature (délègue au binaire `pdf-sign` de aloli-crystal/pdf-signature) :
+      sign -i IN -o OUT -c CERT.p12 -p VAR_ENV [-l b-lt] [-t URL_TSA] ...
+                                    Signe un PDF (PAdES B-B/B-T/B-LT/B-LTA).
+                                    La phrase de passe est le NOM d'une
+                                    variable d'env, jamais sa valeur.
+      verify SIGNE.pdf [-a CA.pem]  Vérifie les signatures d'un PDF.
+                                    Tous les drapeaux après `sign`/`verify`
+                                    sont passés tels quels à `pdfsig`.
 
     Options :
     BANNER

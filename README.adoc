@@ -311,6 +311,29 @@ the back cover pages display a number, and the booklet's first
 content page is numbered "1". `%total%` reflects the *content* total
 (not including covers).
 
+=== Signing (`sign` / `verify`)
+
+After assembling a document you can sign it (PAdES) without leaving the
+tool. `sign` / `verify` delegate to the `pdf-sign` binary from
+`aloli-crystal/pdf-signature` — everything after the verb is passed
+through verbatim, so the full flag surface (levels B-B…B-LTA, RFC 3161
+timestamping, LTV, PKCS#11/HSM) is exactly pdf-sign's.
+
+[source,shell]
+----
+export P12_PASS=…                     # the passphrase lives in an env var
+crystal-combine-pdf merge a.pdf b.pdf -o book.pdf
+crystal-combine-pdf sign -i book.pdf -o book-signed.pdf \
+  -c signer.p12 -p P12_PASS -l b-lt -t https://tsa.example/tsr
+crystal-combine-pdf verify book-signed.pdf -a trust.pem
+----
+
+* The passphrase / PIN is given as the **name of an environment
+  variable** (`-p P12_PASS`), never as a value — no secret reaches argv.
+* `pdf-sign` is resolved from `$COMBINE_PDF_PDFSIG` (an explicit path)
+  or as `pdf-sign` on `PATH`. poppler's unrelated `pdfsig` is never
+  called. Install: `ln -s …/pdf-signature/bin/pdf-sign ~/bin/pdf-sign`.
+
 === Encryption
 
 The `aloli-crystal/pdf` shard (≥ 0.5.2) implements the PDF spec's
