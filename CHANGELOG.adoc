@@ -3,6 +3,28 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.41 — 2026-06-16
+
+=== Added
+
+* **Proposition interactive de créer `.crystal-combine-pdf.yml`**
+  quand on lance la commande dans un dossier qui n'en contient pas.
+  Avant : message d'erreur sec « Pour démarrer : crystal-combine-pdf init ».
+  Maintenant : prompt « Voulez-vous le créer maintenant (équivalent
+  de `init`) ? [Y/n] » avec [Y] par défaut. Si on accepte (Entrée
+  ou y/yes/o/oui), le YAML est généré comme avec `init`, en
+  respectant les options déjà passées (`--profile`, `--paper-size`,
+  `--watermark`, etc.).
+
+=== Behaviour
+
+* La proposition n'apparaît que si STDIN ET STDERR sont des **TTY
+  interactifs**. En non-interactif (cron, CI, redirection de STDIN
+  ou STDERR), le comportement antérieur est strictement préservé :
+  message d'erreur + sortie avec code 1, pour ne pas casser les
+  scripts existants. Un EOF (Ctrl-D) au prompt = annulation
+  explicite (code 1), pas acceptation par défaut.
+
 == v1.0.31.40 — 2026-06-05
 
 === Changed

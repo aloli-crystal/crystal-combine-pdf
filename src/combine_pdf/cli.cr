@@ -705,11 +705,46 @@ module CombinePDF
             return 1
           end
         else
-          STDERR.puts "Erreur : aucune sous-commande spécifiée et aucun #{CombinePDF::ConfigInitializer::CONFIG_FILENAME} trouvé dans #{target_dir}."
-          STDERR.puts ""
-          STDERR.puts "Pour démarrer : crystal-combine-pdf init"
-          STDERR.puts parser
-          return 1
+          # Pas de YAML. En terminal interactif on propose de le créer
+          # maintenant (UX onboarding). En non-interactif (cron, CI,
+          # redirection) on garde l'erreur explicite pour ne pas casser
+          # les scripts qui s'appuient sur le code retour.
+          if STDIN.tty? && STDERR.tty?
+            STDERR.puts "Aucun #{CombinePDF::ConfigInitializer::CONFIG_FILENAME} dans #{target_dir}."
+            STDERR.print "Voulez-vous le créer maintenant (équivalent de `init`) ? [Y/n] "
+            STDERR.flush
+            raw = STDIN.gets
+            # `nil` = EOF (Ctrl-D ou flux fermé) → on annule explicitement.
+            # `""`  = Entrée seule → on accepte (défaut [Y]).
+            if raw.nil?
+              STDERR.puts ""
+              STDERR.puts "Annulé (entrée fermée). Pour le faire plus tard : crystal-combine-pdf init"
+              return 1
+            end
+            response = raw.strip.downcase
+            if response.empty? || response.in?({"y", "yes", "o", "oui"})
+              begin
+                target = CombinePDF::ConfigInitializer.init(target_dir, recursive, init_options)
+                puts "✓ Créé : #{target}"
+                pdfs = CombinePDF::ConfigInitializer.scan_pdfs(target_dir, recursive)
+                puts "  #{pdfs.size} fichier(s) PDF listé(s)#{recursive ? " (récursif)" : ""}"
+                puts "  Éditez ce fichier puis relancez `crystal-combine-pdf` pour construire le livret."
+                return 0
+              rescue ex
+                STDERR.puts "Erreur : #{ex.message}"
+                return 1
+              end
+            else
+              STDERR.puts "Annulé. Pour le faire plus tard : crystal-combine-pdf init"
+              return 1
+            end
+          else
+            STDERR.puts "Erreur : aucune sous-commande spécifiée et aucun #{CombinePDF::ConfigInitializer::CONFIG_FILENAME} trouvé dans #{target_dir}."
+            STDERR.puts ""
+            STDERR.puts "Pour démarrer : crystal-combine-pdf init"
+            STDERR.puts parser
+            return 1
+          end
         end
       end
 
