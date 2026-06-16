@@ -3,6 +3,19 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.42 — 2026-06-16
+
+=== Changed
+
+* **Tri alphabétique des options DANS chaque section de l'aide.**
+  Les sections (Options globales, `init`, `compress`, `encrypt`,
+  sous-commandes historiques, Aide) restent groupées comme avant ;
+  à l'intérieur de chaque section, les flags sont désormais triés
+  alphabétiquement par leur long flag, pour qu'on les retrouve sans
+  scanner. NB : l'ordre des `p.on` n'affecte que l'aide affichée —
+  à l'exécution, OptionParser traite les flags dans l'ordre de la
+  ligne de commande, peu importe l'ordre de déclaration.
+
 == v1.0.31.41 — 2026-06-16
 
 === Added

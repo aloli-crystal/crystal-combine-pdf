@@ -174,15 +174,34 @@ module CombinePDF
     Options :
     BANNER
 
-        # Options communes init / refresh
-        p.on("-r", "--recursive", "Mode récursif (avec init ou refresh)") { recursive = true }
+        # Options communes init / refresh — triées alpha par long flag.
+        # NB : l'ordre des `p.on` n'affecte que l'aide affichée. À
+        # l'exécution, OptionParser exécute les blocs dans l'ordre
+        # des flags sur la ligne de commande.
         p.on("-d DIR", "--dir=DIR", "Dossier cible (défaut : .)") { |v| target_dir = v }
+        p.on("-r", "--recursive", "Mode récursif (avec init ou refresh)") { recursive = true }
 
         p.separator ""
-        p.separator "Options pour `init` (personnalisent le YAML généré) :"
+        p.separator "Options pour `init` (personnalisent le YAML généré) — tri alpha :"
 
-        # Profil — applique les défauts d'un profil avant les autres flags.
-        # Doit être traité tôt pour que les flags qui suivent puissent surcharger.
+        p.on("--author=TEXT", "Override l'auteur (défaut : git config user.name)") { |v| init_options.author = v }
+        p.on("--cover=MODE", "Mode couverture : none (défaut) | recto | recto-verso") do |v|
+          init_options.cover_mode = v
+        end
+        p.on("--duplex", "Génère duplex: true (recto-verso)") { init_options.duplex = true }
+        p.on("--header", "Active le header de partition (titre du fichier en haut)") do
+          init_options.header_state = :enabled
+        end
+        p.on("--init-format=FMT", "Format global (défaut : '• %page% / %total% •')") do |v|
+          init_options.global_format = v
+        end
+        p.on("--init-output=FILE", "Override le nom du PDF de sortie") { |v| init_options.output = v }
+        p.on("--no-numbering", "Désactive toute la numérotation (numbering.enabled: false)") do
+          init_options.numbering_enabled = false
+        end
+        p.on("--paper-size=SIZE", "a4 (défaut) | letter | legal | a3 | a5 | b5 | executive | WxH") do |v|
+          init_options.paper_size = v
+        end
         p.on("--profile=NAME", "Profil de défauts : booklet (défaut) | book | report | slides | minimal") do |v|
           begin
             # Quand --profile est explicite, on ré-applique les surcharges
@@ -196,56 +215,28 @@ module CombinePDF
             raise Halt.new(1)
           end
         end
+        p.on("--skip-header", "Omet entièrement la section header du YAML") do
+          init_options.header_state = :omitted
+        end
+        p.on("--skip-toc", "Omet entièrement la section TOC du YAML") { init_options.toc_state = :omitted }
+        p.on("--skip-watermark", "Omet entièrement la section filigrane du YAML") do
+          init_options.watermark_state = :omitted
+        end
+        p.on("--title=TEXT", "Override le titre (défaut : nom du dossier)") { |v| init_options.title = v }
+        p.on("--toc", "Active la page de titre + sommaire cliquable") { init_options.toc_state = :enabled }
         p.on("--user-config=PATH", "Chemin custom de la config user (défaut : ~/.crystal-combine-pdf.yml)") do |_v|
           # Déjà géré par le pré-scan ; ce handler est juste là pour que
           # OptionParser ne se plaigne pas.
         end
-
-        # Réglages directs (overrides des valeurs déduites)
-        p.on("--paper-size=SIZE", "a4 (défaut) | letter | legal | a3 | a5 | b5 | executive | WxH") do |v|
-          init_options.paper_size = v
-        end
-        p.on("--duplex", "Génère duplex: true (recto-verso)") { init_options.duplex = true }
-        p.on("--title=TEXT", "Override le titre (défaut : nom du dossier)") { |v| init_options.title = v }
-        p.on("--author=TEXT", "Override l'auteur (défaut : git config user.name)") { |v| init_options.author = v }
-        p.on("--init-output=FILE", "Override le nom du PDF de sortie") { |v| init_options.output = v }
-
-        # Numérotation
-        p.on("--no-numbering", "Désactive toute la numérotation (numbering.enabled: false)") do
-          init_options.numbering_enabled = false
-        end
-        p.on("--init-format=FMT", "Format global (défaut : '• %page% / %total% •')") do |v|
-          init_options.global_format = v
-        end
-
-        # Couverture
-        p.on("--cover=MODE", "Mode couverture : none (défaut) | recto | recto-verso") do |v|
-          init_options.cover_mode = v
-        end
-
-        # Sections optionnelles
-        p.on("--toc", "Active la page de titre + sommaire cliquable") { init_options.toc_state = :enabled }
-        p.on("--skip-toc", "Omet entièrement la section TOC du YAML") { init_options.toc_state = :omitted }
         p.on("--watermark=TEXT", "Active la section filigrane avec ce texte") do |v|
           init_options.watermark_state = :enabled
           init_options.watermark_text = v
         end
-        p.on("--skip-watermark", "Omet entièrement la section filigrane du YAML") do
-          init_options.watermark_state = :omitted
-        end
-        p.on("--header", "Active le header de partition (titre du fichier en haut)") do
-          init_options.header_state = :enabled
-        end
-        p.on("--skip-header", "Omet entièrement la section header du YAML") do
-          init_options.header_state = :omitted
-        end
 
         p.separator ""
-        p.separator "Options pour `compress` :"
-        p.on("-i", "--in-place", "Réécrit le fichier d'entrée (avec un .tmp atomique)") { compress_in_place = true }
+        p.separator "Options pour `compress` — tri alpha :"
         p.on("--backup", "Avec --in-place : conserve l'original sous .bak") { compress_backup = true }
         p.on("--deep", "Compression profonde via gs (downsampling images, JPEG, fonts). Nécessite ghostscript installé.") { compress_deep = true }
-        p.on("-L", "--linearize", "Linéarise le PDF (Fast Web View, ISO 32000-1 § F) — affichage progressif sur HTTP. Nécessite `qpdf` installé. Ne pas combiner avec un PDF déjà signé PAdES.") { compress_linearize = true }
         p.on("--deep-quality=Q", "Preset gs : screen | ebook (défaut) | printer | prepress") do |v|
           compress_deep_quality = case v.downcase
                                   when "screen"   then :screen
@@ -258,14 +249,22 @@ module CombinePDF
                                     raise Halt.new(1)
                                   end
         end
+        p.on("-i", "--in-place", "Réécrit le fichier d'entrée (avec un .tmp atomique)") { compress_in_place = true }
+        p.on("-L", "--linearize", "Linéarise le PDF (Fast Web View, ISO 32000-1 § F) — affichage progressif sur HTTP. Nécessite `qpdf` installé. Ne pas combiner avec un PDF déjà signé PAdES.") { compress_linearize = true }
 
         p.separator ""
-        p.separator "Options pour `encrypt` (et surcharges de la section `encrypt:` du YAML lors d'un `build`) :"
+        p.separator "Options pour `encrypt` (et surcharges de la section `encrypt:` du YAML lors d'un `build`) — tri alpha :"
+        p.on("--encrypt", "Lors d'un `build` : force le chiffrement (avec les options CLI ou défauts AES-256)") do
+          encrypt_force_on = true
+        end
+        p.on("-I PWD", "--input-password=PWD", "Mot de passe à essayer sur les PDFs sources chiffrés (utilisé par `build` et `decrypt`)") do |v|
+          input_password = v
+        end
         p.on("-l LEVEL", "--level=LEVEL", "Niveau : rc4_128 | aes_128 | aes_256 (défaut : aes_256)") do |v|
           encrypt_level = v
         end
-        p.on("-u PWD", "--user-password=PWD", "Mot de passe utilisateur (vide = pas de password à l'ouverture)") do |v|
-          encrypt_user_password = v
+        p.on("--no-encrypt", "Lors d'un `build` : désactive le chiffrement même si présent dans le YAML") do
+          encrypt_force_off = true
         end
         p.on("-w PWD", "--owner-password=PWD", "Mot de passe owner (défaut : identique à user)") do |v|
           encrypt_owner_password = v
@@ -273,42 +272,36 @@ module CombinePDF
         p.on("-p LIST", "--permissions=LIST", "Permissions du PDF chiffré (csv : print,copy,modify,annotate). 'none' = tout interdit, 'all' = tout autorisé. Défaut : tout autorisé.") do |v|
           encrypt_permissions = v
         end
-        p.on("--no-encrypt", "Lors d'un `build` : désactive le chiffrement même si présent dans le YAML") do
-          encrypt_force_off = true
-        end
-        p.on("--encrypt", "Lors d'un `build` : force le chiffrement (avec les options CLI ou défauts AES-256)") do
-          encrypt_force_on = true
-        end
-        p.on("-I PWD", "--input-password=PWD", "Mot de passe à essayer sur les PDFs sources chiffrés (utilisé par `build` et `decrypt`)") do |v|
-          input_password = v
+        p.on("-u PWD", "--user-password=PWD", "Mot de passe utilisateur (vide = pas de password à l'ouverture)") do |v|
+          encrypt_user_password = v
         end
 
         p.separator ""
-        p.separator "Options des sous-commandes historiques :"
+        p.separator "Options des sous-commandes historiques — tri alpha :"
+        p.on("--color=R,G,B", "Couleur RGB du texte (défaut : 0.2,0.2,0.2)") { |v| color_str = v }
+        p.on("--font-size=SIZE", "Taille de police (défaut : 10)") { |v| font_size = v.to_f }
+        p.on("--global-format=FMT", "Format global (défaut : '%page%/%total%')") { |v| global_format = v }
+        p.on("--margin=PT", "Marge en points (défaut : 24)") { |v| margin = v.to_f }
         p.on("-o FICHIER", "--output=FICHIER", "Fichier de sortie") { |v| output_path = v }
+        p.on("--partition-format=FMT", "Format intra-partition") { |v| partition_format = v }
         p.on("--partitions=LIST", "Tailles séparées par virgules (ex: 4,2,1)") do |v|
           partitions = v.split(',').map(&.strip.to_i)
+        end
+        p.on("--show-single-partitions", "Affiche le numéro intra-partition même pour 1 page") do
+          hide_partition_when_single = false
         end
         p.on("--skip=PAGES", "Pages à ne pas numéroter (1-based, virgules)") do |v|
           skip_pages = v.split(',').map(&.strip.to_i)
         end
-        p.on("--font-size=SIZE", "Taille de police (défaut : 10)") { |v| font_size = v.to_f }
-        p.on("--margin=PT", "Marge en points (défaut : 24)") { |v| margin = v.to_f }
-        p.on("--color=R,G,B", "Couleur RGB du texte (défaut : 0.2,0.2,0.2)") { |v| color_str = v }
-        p.on("--global-format=FMT", "Format global (défaut : '%page%/%total%')") { |v| global_format = v }
-        p.on("--partition-format=FMT", "Format intra-partition") { |v| partition_format = v }
-        p.on("--show-single-partitions", "Affiche le numéro intra-partition même pour 1 page") do
-          hide_partition_when_single = false
-        end
 
         p.separator ""
-        p.separator "Aide :"
-        p.on("-v", "--version", "Affiche la version") do
-          puts "crystal-combine-pdf #{CombinePDF::VERSION}"
-          raise Halt.new(0)
-        end
+        p.separator "Aide — tri alpha :"
         p.on("-h", "--help", "Affiche l'aide") do
           puts p
+          raise Halt.new(0)
+        end
+        p.on("-v", "--version", "Affiche la version") do
+          puts "crystal-combine-pdf #{CombinePDF::VERSION}"
           raise Halt.new(0)
         end
 
