@@ -27,6 +27,13 @@ module CombinePDF
     # PAS écrire le mot de passe en clair dans le YAML.
     property override_input_password : String? = nil
 
+    # Quand `true` (défaut), les PDFs sources dont l'une des pages
+    # porte `/Rotate ≠ 0` sont pré-traités via `qpdf --flatten-rotation`
+    # avant l'assemblage. Évite les pages à l'envers dans le livret
+    # final quand un scan a été tourné dans Aperçu macOS sans
+    # cuisson du contenu.
+    property flatten_rotation : Bool = true
+
     def initialize(@config : Config, @base_dir : String)
     end
 
@@ -116,6 +123,7 @@ module CombinePDF
         # sur les paths nus pour pouvoir passer le mot de passe par
         # fichier (`entry.password` ou fallback global).
         merger = Merger.new
+        merger.flatten_rotation = @flatten_rotation
         active.each do |entry|
           full = File.join(@base_dir, entry.path)
           merger.add(full, password: password_for(entry))

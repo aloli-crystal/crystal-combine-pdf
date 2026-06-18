@@ -40,13 +40,35 @@ module CombinePDF
     property security_handler : ::PDF::Encryption::StandardSecurity? = nil
     property file_id : Bytes? = nil
 
+    # Quand `true` (défaut), pré-traite chaque PDF source via
+    # `qpdf --flatten-rotation` si l'une de ses pages porte un tag
+    # `/Rotate ≠ 0`. Cuit ainsi les rotations posées par Aperçu
+    # macOS / Acrobat (cf. `RotationFlattener`). Désactiver avec
+    # `--no-flatten-rotation` côté CLI.
+    property flatten_rotation : Bool = true
+
+    # IO d'avertissement (défaut STDERR). Le pré-traitement écrit
+    # un message par PDF rotaté ; mettre à `nil` pour silencieux.
+    property flatten_rotation_warn_io : IO? = STDERR
+
+    # Liste des fichiers temporaires créés par le pré-traitement
+    # `qpdf --flatten-rotation`. Supprimés au `save`.
+    @flatten_rotation_tmps : Array(String) = [] of String
+
     def initialize
     end
 
     # Reads every PDF in `inputs` and writes the merged result to
     # `output`. Pages are concatenated in the order given.
-    def self.merge(inputs : Array(String), output : String) : Nil
+    def self.merge(
+      inputs : Array(String),
+      output : String,
+      flatten_rotation : Bool = true,
+      flatten_rotation_warn_io : IO? = STDERR,
+    ) : Nil
       merger = new
+      merger.flatten_rotation = flatten_rotation
+      merger.flatten_rotation_warn_io = flatten_rotation_warn_io
       inputs.each { |path| merger.add(path) }
       merger.save(output)
     end
@@ -56,7 +78,19 @@ module CombinePDF
     # est chiffré (vide par défaut, ce qui suffit pour la majorité
     # des PDFs « owner-only protected »).
     def add(path : String, password : String = "") : Nil
-      reader = ::PDF::Reader.open(path, password: password)
+      # Pré-traitement /Rotate : si l'une des pages a /Rotate ≠ 0,
+      # cuire via qpdf pour ne pas embarquer du contenu inversé
+      # dans le PDF assemblé. Le fichier de travail est swapé vers
+      # un temp ; la suppression est différée au `save` final.
+      working_path = RotationFlattener.preprocess(
+        path,
+        password: password,
+        enabled: @flatten_rotation,
+        warn_io: @flatten_rotation_warn_io,
+      )
+      @flatten_rotation_tmps << working_path if working_path != path
+
+      reader = ::PDF::Reader.open(working_path, password: password)
 
       # Force the lazy reader to materialise every object referenced
       # by the xref. `Reader#objects` is a cache populated on demand,
@@ -167,6 +201,18 @@ module CombinePDF
     # the merged PDF to `path`.
     def save(path : String) : Nil
       File.open(path, "wb") { |io| write(io) }
+    ensure
+      cleanup_rotation_tmps
+    end
+
+    # Supprime les fichiers temporaires créés par le pré-traitement
+    # `qpdf --flatten-rotation`. Public pour les tests ; appelé
+    # automatiquement par `save`.
+    def cleanup_rotation_tmps : Nil
+      @flatten_rotation_tmps.each do |tmp|
+        File.delete(tmp) if File.exists?(tmp)
+      end
+      @flatten_rotation_tmps.clear
     end
 
     # Same as `#save` but to an arbitrary IO.

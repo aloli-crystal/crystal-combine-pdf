@@ -7,6 +7,7 @@ require "./combine_pdf/options"
 require "./combine_pdf/signer"
 require "./combine_pdf/numberer"
 require "./combine_pdf/merged_document_writer"
+require "./combine_pdf/rotation_flattener"
 require "./combine_pdf/merger"
 require "./combine_pdf/pdf"
 require "./combine_pdf/config"
@@ -108,8 +109,12 @@ module CombinePDF
   # Concatenates `inputs` into a single PDF written to `output`.
   # Pages are taken in the input order. Object IDs are renumbered
   # to avoid collisions between sources.
-  def self.merge(inputs : Array(String), output : String) : Nil
-    Merger.merge(inputs, output)
+  def self.merge(
+    inputs : Array(String),
+    output : String,
+    flatten_rotation : Bool = true,
+  ) : Nil
+    Merger.merge(inputs, output, flatten_rotation: flatten_rotation)
   end
 
   # Numbers the pages of `input` and writes the result to `output`.
@@ -131,14 +136,15 @@ module CombinePDF
   # but with auto-detected partitions and a single temp file.
   def self.assemble(inputs : Array(String),
                     output : String,
-                    options : Options = Options.new) : Nil
+                    options : Options = Options.new,
+                    flatten_rotation : Bool = true) : Nil
     # Auto-detect partition sizes by counting pages in each input.
     partitions = inputs.map { |path| ::PDF::Reader.open(path).page_count }
 
     # Merge into a temp file, then number into the final output.
     tmp = File.tempname("ccp-assemble", ".pdf")
     begin
-      merge(inputs, tmp)
+      merge(inputs, tmp, flatten_rotation: flatten_rotation)
       number(input: tmp, output: output, partitions: partitions, options: options)
     ensure
       File.delete(tmp) if File.exists?(tmp)

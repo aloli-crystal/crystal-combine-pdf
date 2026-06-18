@@ -69,6 +69,11 @@ module CombinePDF
       #     ainsi que `decrypt`).
       input_password : String? = nil
 
+      # ─── Drapeau /Rotate flatten — voir `RotationFlattener`. Par
+      #     défaut activé : pré-traite via qpdf les PDFs sources dont
+      #     une page porte /Rotate ≠ 0 (cas Aperçu macOS).
+      flatten_rotation = true
+
       # ─── Config user (préférences globales pour `init`) ───────────────
       # Chargée AVANT le parsing CLI pour fixer le profil par défaut. Les
       # drapeaux explicites surchargeront ensuite. Précédence (faible →
@@ -179,6 +184,7 @@ module CombinePDF
         # l'exécution, OptionParser exécute les blocs dans l'ordre
         # des flags sur la ligne de commande.
         p.on("-d DIR", "--dir=DIR", "Dossier cible (défaut : .)") { |v| target_dir = v }
+        p.on("-R", "--no-flatten-rotation", "Désactive le pré-traitement `qpdf --flatten-rotation` des PDFs sources dont une page porte /Rotate ≠ 0 (cas Aperçu macOS qui pose un tag de rotation sans réécrire le contenu). Par défaut activé pour `build`/`merge`/`assemble`.") { flatten_rotation = false }
         p.on("-r", "--recursive", "Mode récursif (avec init ou refresh)") { recursive = true }
 
         p.separator ""
@@ -689,6 +695,7 @@ module CombinePDF
             elsif encrypt_force_on
               builder.override_encrypt_enabled = true
             end
+            builder.flatten_rotation = flatten_rotation
 
             output = builder.build
             puts "✓ Livret construit : #{output}"
@@ -788,7 +795,7 @@ module CombinePDF
         end
         output_path = "merged.pdf" if output_path.empty?
         begin
-          CombinePDF.merge(inputs: remaining, output: output_path)
+          CombinePDF.merge(inputs: remaining, output: output_path, flatten_rotation: flatten_rotation)
           puts "PDF fusionné : #{output_path}"
         rescue ex
           STDERR.puts "Erreur : #{ex.message}"
@@ -810,7 +817,7 @@ module CombinePDF
         options = build_options(font_size, margin, color_str, global_format,
           partition_format, hide_partition_when_single, skip_pages)
         begin
-          CombinePDF.assemble(inputs: remaining, output: output_path, options: options)
+          CombinePDF.assemble(inputs: remaining, output: output_path, options: options, flatten_rotation: flatten_rotation)
           puts "Livret assemblé : #{output_path}"
         rescue ex
           STDERR.puts "Erreur : #{ex.message}"

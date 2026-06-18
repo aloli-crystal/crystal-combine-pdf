@@ -3,6 +3,43 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.43 — 2026-06-16
+
+=== Added
+
+* **Détecteur `/Rotate` + cuisson automatique via `qpdf --flatten-rotation`.**
+  Aperçu macOS (et la plupart des viewers PDF) tournent une page
+  scannée à l'envers en posant un tag `/Rotate 180` sur le dict de
+  la page, sans réécrire les opérateurs de contenu. Visuellement
+  correct dans le viewer, mais l'assemblage naïf de
+  `crystal-combine-pdf` ignorait ce tag et embarquait la page à
+  l'envers dans le PDF final.
++
+  Désormais, `Merger#add` détecte les pages avec `/Rotate ≠ 0` via
+  le nouvel accesseur `PDF::ReaderPage#rotate` (shard `pdf` 1.20.2)
+  et, si `qpdf` est dans le PATH, applique `qpdf --flatten-rotation`
+  sur un fichier temporaire avant la fusion. Un message
+  informatif est écrit sur `STDERR` :
+  `✓ <path> : cuit /Rotate sur N page(s) (7).`
++
+  Si `qpdf` n'est pas disponible, un avertissement est émis et le
+  pipeline continue avec le fichier original (fallback gracieux,
+  pas de crash). S'applique à `build`, `merge`, `assemble`.
+
+=== Options
+
+* **`-R`, `--no-flatten-rotation`** — désactive le pré-traitement.
+  Pour les rares cas où l'on veut préserver le tag `/Rotate` du
+  PDF source (par ex. test de conformité, transfert vers un outil
+  qui interprète `/Rotate`).
+
+=== Specs
+
+* Nouveau module `CombinePDF::RotationFlattener` + 8 specs
+  (détection, cuisson, fallback sans qpdf, intégration `Merger`).
+* Le shard `pdf` 1.20.2 gagne `PDF::ReaderPage#rotate : Int32`
+  (héritable depuis `/Pages`, normalisé en `[0, 360[`).
+
 == v1.0.31.42 — 2026-06-16
 
 === Changed
