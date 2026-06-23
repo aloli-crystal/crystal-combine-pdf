@@ -47,6 +47,7 @@ module CombinePDF
       mode_gs = false
       mode_encrypt = false
       mode_decrypt = false
+      mode_rasterize = false
       recursive = false
       target_dir = "."
 
@@ -73,6 +74,11 @@ module CombinePDF
       #     défaut activé : pré-traite via qpdf les PDFs sources dont
       #     une page porte /Rotate ≠ 0 (cas Aperçu macOS).
       flatten_rotation = true
+
+      # ─── Paramètres du mode `rasterize` (cf. `Rasterizer`)
+      rasterize_dpi = CombinePDF::Rasterizer::DEFAULT_DPI
+      rasterize_quality = CombinePDF::Rasterizer::DEFAULT_JPEG_QUALITY
+      rasterize_in_place = false
 
       # ─── Config user (préférences globales pour `init`) ───────────────
       # Chargée AVANT le parsing CLI pour fixer le profil par défaut. Les
@@ -161,6 +167,16 @@ module CombinePDF
         via `-u` ; vide par défaut pour les PDFs « owner-only
         protected » (cas le plus courant : restrictions sans
         password à l'ouverture). Symétrique de `encrypt`.
+
+      crystal-combine-pdf rasterize FICHIER.pdf [-o SORTIE.pdf | -i]
+                          [--dpi N] [--quality Q]
+        Rastérise chaque page en JPEG plein page (via Ghostscript),
+        puis réembarque dans un nouveau PDF. Anti-extraction /
+        anti-falsification : plus de texte extractible, un filigrane
+        posé avant la rastérisation devient indissociable du contenu.
+        Pattern observé chez DossierFacile pour les RIB protégés.
+        Compromis : taille fichier en hausse, accessibilité dégradée.
+        Nécessite `gs` (Ghostscript) installé.
 
     Sous-commandes historiques :
       number FICHIER                Numérote les pages d'un PDF existant
@@ -283,6 +299,27 @@ module CombinePDF
         end
 
         p.separator ""
+        p.separator "Options pour `rasterize` — tri alpha :"
+        p.on("--dpi=N", "Résolution de rendu en dpi (défaut : 200). 150 = écran, 300 = imprimable.") do |v|
+          rasterize_dpi = v.to_i? || begin
+            STDERR.puts "Erreur : --dpi attend un entier (#{v})."
+            raise Halt.new(1)
+          end
+        end
+        p.on("-i", "--in-place", "Réécrit le fichier d'entrée (avec un .tmp atomique)") do
+          # NB : `-i` est déjà partagé avec `compress` ; ici on positionne
+          # un flag dédié pour ne pas marcher sur celui du compresseur.
+          rasterize_in_place = true
+          compress_in_place = true
+        end
+        p.on("--quality=Q", "Qualité JPEG 0-100 (défaut : 85)") do |v|
+          rasterize_quality = v.to_i? || begin
+            STDERR.puts "Erreur : --quality attend un entier (#{v})."
+            raise Halt.new(1)
+          end
+        end
+
+        p.separator ""
         p.separator "Options des sous-commandes historiques — tri alpha :"
         p.on("--color=R,G,B", "Couleur RGB du texte (défaut : 0.2,0.2,0.2)") { |v| color_str = v }
         p.on("--font-size=SIZE", "Taille de police (défaut : 10)") { |v| font_size = v.to_f }
@@ -353,6 +390,9 @@ module CombinePDF
         when "decrypt"
           mode_decrypt = true
           positional = positional[1..]
+        when "rasterize"
+          mode_rasterize = true
+          positional = positional[1..]
         when "help", "-h", "--help"
           # `help [sous-commande]` — UX standard. Sans argument c'est
           # l'aide globale (équivalent à --help). Avec argument on filtre
@@ -368,7 +408,7 @@ module CombinePDF
           # section qui mentionne la sous-commande dans son titre ou son
           # premier paragraphe et on l'imprime, plus un rappel.
           target = sub.downcase
-          valid_subs = %w(init refresh build compress gs encrypt decrypt)
+          valid_subs = %w(init refresh build compress gs encrypt decrypt rasterize)
           unless valid_subs.includes?(target)
             STDERR.puts "Aide indisponible pour « #{sub} » (sous-commandes : #{valid_subs.join(", ")})."
             STDERR.puts "Utilisez `crystal-combine-pdf help` pour l'aide globale."
@@ -669,6 +709,64 @@ module CombinePDF
             STDERR.puts "Fournissez-le via `-u PWD` (ou `--user-password=PWD`)."
             STDERR.puts "Le mot de passe owner fonctionne aussi."
           end
+          return 1
+        rescue ex
+          STDERR.puts "Erreur : #{ex.message}"
+          return 1
+        end
+      end
+
+      # Mode rasterize : rend chaque page en JPEG plein page (gs)
+      # puis réembarque dans un nouveau PDF. Anti-extraction /
+      # anti-falsification — voir `CombinePDF::Rasterizer`.
+      if mode_rasterize
+        if positional.empty?
+          STDERR.puts "Erreur : rasterize nécessite un fichier d'entrée."
+          STDERR.puts "Usage : crystal-combine-pdf rasterize FICHIER.pdf [-o SORTIE.pdf | -i] [--dpi N] [--quality Q]"
+          return 1
+        end
+        input = positional.first
+        unless File.exists?(input)
+          STDERR.puts "Erreur : fichier introuvable : #{input}"
+          return 1
+        end
+
+        target_output = if rasterize_in_place
+                          input
+                        elsif !output_path.empty?
+                          output_path
+                        else
+                          input.sub(/\.pdf$/i, "-rasterized.pdf")
+                        end
+
+        begin
+          if rasterize_in_place
+            tmp = "#{input}.rasterize.tmp.#{Process.pid}.pdf"
+            CombinePDF::Rasterizer.rasterize(
+              input: input,
+              output: tmp,
+              dpi: rasterize_dpi,
+              jpeg_quality: rasterize_quality,
+              password: input_password.to_s,
+            )
+            File.rename(tmp, input)
+          else
+            CombinePDF::Rasterizer.rasterize(
+              input: input,
+              output: target_output,
+              dpi: rasterize_dpi,
+              jpeg_quality: rasterize_quality,
+              password: input_password.to_s,
+            )
+          end
+          before = File.size(input).to_i64
+          after = File.size(target_output).to_i64
+          puts "PDF rastérisé (#{rasterize_dpi} dpi, qualité #{rasterize_quality}) : #{target_output}"
+          puts "Taille : #{(before / 1024.0).round(1)} Ko → #{(after / 1024.0).round(1)} Ko " \
+               "(#{((after.to_f / before) * 100).round(1)} %)"
+          return 0
+        rescue ex : CombinePDF::Rasterizer::Error
+          STDERR.puts "Erreur : #{ex.message}"
           return 1
         rescue ex
           STDERR.puts "Erreur : #{ex.message}"

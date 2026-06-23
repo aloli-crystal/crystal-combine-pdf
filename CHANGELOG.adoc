@@ -3,6 +3,56 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.44 — 2026-06-23
+
+=== Added
+
+* **Sous-commande `rasterize`** : convertit chaque page d'un PDF en
+  image JPEG plein page (via Ghostscript) puis réembarque le tout
+  dans un nouveau PDF. Anti-extraction / anti-falsification —
+  pattern observé chez DossierFacile pour les RIB protégés où
+  TOUT le document est un seul JPEG par page, rendant le texte
+  non-extractible et un filigrane indissociable du contenu.
++
+[source,bash]
+----
+crystal-combine-pdf rasterize rib.pdf -o rib-protege.pdf
+crystal-combine-pdf rasterize rib.pdf -i                # in-place
+crystal-combine-pdf rasterize rib.pdf --dpi 300 --quality 95
+----
++
+Pipeline interne :
++
+. `gs -sDEVICE=jpeg -r{dpi} -dJPEGQ={quality}` rend chaque page.
+. Les dimensions de chaque page source sont préservées (A4,
+  Letter, custom — lues via `PDF::Reader` avant la rastérisation).
+. Le nouveau PDF embarque les JPEG en `PDF::Page#image` plein page.
+. Le `/Producer` est tagué `crystal-combine-pdf X.Y.Z (rasterized)`
+  pour la traçabilité.
+
+=== Options
+
+* **`--dpi=N`** — résolution de rendu (défaut 200 dpi). 150 = écran,
+  300 = imprimable.
+* **`--quality=Q`** — qualité JPEG 0-100 (défaut 85).
+* **`-i` / `--in-place`** — réécrit le fichier d'entrée via .tmp atomique.
+* **`-o FICHIER`** — chemin de sortie explicite (sinon `<source>-rasterized.pdf`).
+
+=== Compromis assumés
+
+* Texte non extractible (pas de copier-coller, pas d'OCR
+  immédiat) — mauvais pour l'accessibilité, voulu pour
+  l'anti-falsification.
+* Taille fichier nettement supérieure à un PDF vectoriel
+  équivalent (RIB 200 Ko → 460 Ko à 200 dpi qualité 85).
+
+=== Specs
+
+* Nouveau module `CombinePDF::Rasterizer` + 4 specs
+  (pipeline 2 pages A4, préservation dimensions Letter,
+  traçabilité Producer, cache `ghostscript_available?`).
+  Skip si `gs` absent.
+
 == v1.0.31.43 — 2026-06-16
 
 === Added
