@@ -17,6 +17,38 @@ module CombinePDF
       end
     end
 
+    # Ouvre `path` dans le viewer PDF par défaut du système, en
+    # arrière-plan, **uniquement si STDOUT et STDERR sont des TTY
+    # interactifs**. En non-interactif (pipe, cron, CI, redirection
+    # vers un fichier), on s'abstient pour ne pas tenter d'ouvrir un
+    # PDF dans un contexte sans utilisateur humain.
+    #
+    # Détection de la commande système :
+    # * macOS  → `open` (lance Aperçu ou l'app par défaut, asynchrone)
+    # * Linux/BSD → `xdg-open` (paquet xdg-utils — souvent installé)
+    #
+    # Échec silencieux si aucune commande n'est trouvée OU si le
+    # process retourne non-zéro : le PDF est produit, c'est l'essentiel,
+    # l'ouverture est un confort.
+    private def self.open_in_viewer(path : String) : Nil
+      return unless STDOUT.tty? && STDERR.tty?
+
+      opener = {% if flag?(:darwin) %}
+                 "open"
+               {% else %}
+                 "xdg-open"
+               {% end %}
+      return unless Process.find_executable(opener)
+
+      # On lance en fire-and-forget : `open` (macOS) et `xdg-open`
+      # rendent la main immédiatement après avoir délégué au viewer.
+      Process.run(opener, [path], output: Process::Redirect::Close, error: Process::Redirect::Close)
+    rescue
+      # Tout échec d'ouverture est avalé : c'est un confort, pas un
+      # contrat. Le PDF est sur disque et le code retour de `build`
+      # reste 0.
+    end
+
     def self.run(argv : Array(String)) : Int32
       # `sign` / `verify` are thin forwarders to the ALOLI signing binary
       # (aloli-crystal/pdf-signature). The passphrase is passed through as
@@ -74,6 +106,13 @@ module CombinePDF
       #     défaut activé : pré-traite via qpdf les PDFs sources dont
       #     une page porte /Rotate ≠ 0 (cas Aperçu macOS).
       flatten_rotation = true
+
+      # ─── Ouverture automatique du PDF produit après un `build` quand
+      #     la sortie est un terminal interactif (STDOUT + STDERR sont
+      #     des TTY). En non-interactif (cron, CI, redirection), aucune
+      #     ouverture pour ne pas surprendre. `--no-open` force off
+      #     même en TTY. Ne s'applique qu'à `build`.
+      open_after_build = true
 
       # ─── Paramètres du mode `rasterize` (cf. `Rasterizer`)
       rasterize_dpi = CombinePDF::Rasterizer::DEFAULT_DPI
@@ -137,7 +176,10 @@ module CombinePDF
       crystal-combine-pdf
         Construit le livret depuis .crystal-combine-pdf.yml du
         dossier courant : assemble, numérote, ajoute filigrane,
-        page de titre + sommaire cliquable.
+        page de titre + sommaire cliquable. En terminal interactif,
+        le PDF produit est ouvert dans le viewer par défaut
+        (Aperçu sur macOS, xdg-open sinon) — passer `--no-open`
+        pour désactiver.
 
       crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i] [-L]
         Réduit la taille d'un PDF (recompression Flate uniforme +
@@ -201,6 +243,9 @@ module CombinePDF
         # des flags sur la ligne de commande.
         p.on("-d DIR", "--dir=DIR", "Dossier cible (défaut : .)") { |v| target_dir = v }
         p.on("-R", "--no-flatten-rotation", "Désactive le pré-traitement `qpdf --flatten-rotation` des PDFs sources dont une page porte /Rotate ≠ 0 (cas Aperçu macOS qui pose un tag de rotation sans réécrire le contenu). Par défaut activé pour `build`/`merge`/`assemble`.") { flatten_rotation = false }
+        # Pas de short pour --no-open (les flags de négation sont une
+        # exception légitime à la règle « tout long a un short »).
+        p.on("--no-open", "Désactive l'ouverture automatique du PDF dans le viewer après un `build`. Par défaut, en terminal interactif, le livret produit est ouvert dans Aperçu (macOS) / le viewer associé (xdg-open Linux/BSD). En non-interactif (cron, CI, redirection), aucune ouverture n'a lieu de toute façon.") { open_after_build = false }
         p.on("-r", "--recursive", "Mode récursif (avec init ou refresh)") { recursive = true }
 
         p.separator ""
@@ -797,6 +842,7 @@ module CombinePDF
 
             output = builder.build
             puts "✓ Livret construit : #{output}"
+            open_in_viewer(output) if open_after_build
             return 0
           rescue ex
             STDERR.puts "Erreur : #{ex.message}"

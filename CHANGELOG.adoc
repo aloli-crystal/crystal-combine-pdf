@@ -3,6 +3,40 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.45 — 2026-06-28
+
+=== Added
+
+* **Ouverture automatique du livret après `build`** quand la sortie
+  est un terminal interactif. Évite le « lancer `build` → chercher
+  le PDF dans le Finder → double-cliquer » à chaque itération.
++
+[source,bash]
+----
+crystal-combine-pdf            # → build + ouvre dans Aperçu
+crystal-combine-pdf build      # idem (forme explicite)
+crystal-combine-pdf --no-open  # build, ne pas ouvrir
+----
++
+Comportement :
++
+* En **terminal interactif** (STDOUT + STDERR sont des TTY), le
+  PDF produit est lancé en arrière-plan via `open` (macOS) ou
+  `xdg-open` (Linux/BSD).
+* En **non-interactif** (cron, CI, redirection vers pipe ou
+  fichier, sortie capturée), aucune ouverture — pas de surprise
+  dans les scripts.
+* `--no-open` force off même en TTY.
+* Échec silencieux si `open`/`xdg-open` introuvable ou si le
+  process retourne non-zéro : le PDF est sur disque, c'est
+  l'essentiel.
+
+S'applique **uniquement à `build`** (cas usage : itérer sur un
+livret et vérifier visuellement). Les autres sous-commandes
+(`merge`, `assemble`, `compress`, `gs`, `encrypt`, `decrypt`,
+`rasterize`) ne sont pas concernées — leur sortie est souvent
+une étape intermédiaire d'un pipeline.
+
 == v1.0.31.44 — 2026-06-23
 
 === Added
