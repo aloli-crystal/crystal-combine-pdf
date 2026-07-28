@@ -40,7 +40,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "one.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: livret.pdf
         title: "Livret chiffré"
         author: "ALOLI"
@@ -75,7 +75,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "one.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: livret.pdf
         title: "Livret"
         paper_size: a4
@@ -100,7 +100,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "one.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: livret.pdf
         title: "Livret"
         paper_size: a4
@@ -132,7 +132,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "one.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: livret.pdf
         title: "Livret"
         paper_size: a4
@@ -158,7 +158,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "one.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: livret.pdf
         title: "Livret"
         paper_size: a4
@@ -185,7 +185,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       opts = CombinePDF::ConfigInitializer::InitOptions.new
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       # Section présente mais commentée
       content.should contain("# encrypt:")
       content.should contain("# ─── Chiffrement ──")
@@ -198,7 +198,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       CombinePDF::ConfigInitializer.init(dir)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("# input_password:")
       content.should contain("# ─── PDFs sources chiffrés ──")
       # Pas active par défaut
@@ -220,7 +220,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       end
       pdf.save(File.join(dir, "source.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4
@@ -253,7 +253,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       pdf.save(File.join(dir, "source.pdf"))
 
       # YAML déclare un MAUVAIS mot de passe ; on le surcharge en CLI
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4
@@ -282,7 +282,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       end
       pdf.save(File.join(dir, "source.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4
@@ -353,7 +353,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       SpecHelper.write_a4(File.join(dir, "b.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: livret.pdf
         title: ""
         paper_size: a4
@@ -414,7 +414,7 @@ describe "Chiffrement combine-pdf (intégration)" do
 
       SpecHelper.write_a4(File.join(dir, "c.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4
@@ -446,7 +446,7 @@ describe "Chiffrement combine-pdf (intégration)" do
 
       # Le YAML déclare un input_password GLOBAL incorrect, mais
       # l'entrée surcharge avec le bon mot de passe.
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4
@@ -475,7 +475,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       ["{name: doc.pdf, pwd: k}",
        "{file: doc.pdf, pass: k}",
        "{path: doc.pdf, password: k, label: \"Titre\"}"].each do |inline|
-        File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+        File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
           output: out.pdf
           title: ""
           paper_size: a4
@@ -494,14 +494,14 @@ describe "Chiffrement combine-pdf (intégration)" do
     it "FileEntry.password est nil pour une entrée simple" do
       dir = File.join(SpecHelper::TMP_DIR, "no-pwd-entry")
       Dir.mkdir_p(dir)
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         files:
           - foo.pdf
           - bar.pdf: "Title"
         YAML
 
-      config = CombinePDF::ConfigLoader.load(File.join(dir, ".crystal-combine-pdf.yml"))
+      config = CombinePDF::ConfigLoader.load(File.join(dir, ".combine-pdf.yml"))
       config.files.size.should eq(2)
       config.files[0].path.should eq("foo.pdf")
       config.files[0].password.should be_nil
@@ -523,10 +523,10 @@ describe "Chiffrement combine-pdf (intégration)" do
         files:
           - {path: secure.pdf, password: secret}
         YAML
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), original)
+      File.write(File.join(dir, ".combine-pdf.yml"), original)
 
       CombinePDF::ConfigRefresher.refresh(dir)
-      refreshed = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      refreshed = File.read(File.join(dir, ".combine-pdf.yml"))
       # La ligne inline est préservée mot-pour-mot
       refreshed.should contain("- {path: secure.pdf, password: secret}")
     end
@@ -536,7 +536,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       # Pas de fichier ; refresh va commenter
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         files:
@@ -544,7 +544,7 @@ describe "Chiffrement combine-pdf (intégration)" do
         YAML
 
       CombinePDF::ConfigRefresher.refresh(dir)
-      refreshed = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      refreshed = File.read(File.join(dir, ".combine-pdf.yml"))
       refreshed.should contain("# - {path: ghost.pdf, password: secret}")
     end
   end
@@ -599,7 +599,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "in.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4
@@ -627,7 +627,7 @@ describe "Chiffrement combine-pdf (intégration)" do
       Dir.mkdir_p(dir)
       SpecHelper.write_a4(File.join(dir, "in.pdf"))
 
-      File.write(File.join(dir, ".crystal-combine-pdf.yml"), <<-YAML)
+      File.write(File.join(dir, ".combine-pdf.yml"), <<-YAML)
         output: out.pdf
         title: ""
         paper_size: a4

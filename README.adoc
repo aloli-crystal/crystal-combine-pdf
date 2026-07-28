@@ -1,4 +1,4 @@
-= crystal-combine-pdf
+= combine-pdf
 :toc: macro
 :toclevels: 2
 
@@ -30,19 +30,19 @@ Trois commandes pour assembler un dossier de PDF en livret :
 [source,shell]
 ----
 cd /chemin/vers/mes-partitions
-crystal-combine-pdf init        # génère .crystal-combine-pdf.yml
-$EDITOR .crystal-combine-pdf.yml  # réordonner, titrer, exclure
-crystal-combine-pdf             # construit mes-partitions.pdf
+combine-pdf init        # génère .combine-pdf.yml
+$EDITOR .combine-pdf.yml  # réordonner, titrer, exclure
+combine-pdf             # construit mes-partitions.pdf
 ----
 
 Voyez la section <<Mode déclaratif>> pour le détail du fichier
-`.crystal-combine-pdf.yml`.
+`.combine-pdf.yml`.
 
 == Quickstart (ISO API, mirrors the Ruby gem)
 
 [source,crystal]
 ----
-require "crystal-combine-pdf"
+require "combine-pdf"
 
 # Build a fresh PDF
 pdf = CombinePDF.new
@@ -79,7 +79,7 @@ layer of numbering: a small "1/4", "2/4", … in the corner of each
 page of the partition, so the performer knows when to turn the page
 and how many are left in the current piece.
 
-`crystal-combine-pdf` does both, in pure Crystal, with the page
+`combine-pdf` does both, in pure Crystal, with the page
 geometry read from the actual `MediaBox` of every page.
 
 == Features (v0.1)
@@ -103,7 +103,7 @@ geometry read from the actual `MediaBox` of every page.
   (`<<`, `>>`, `insert`, `remove`, `pages`, `page_count`,
   `new_page`, `title=`, `author=`, `number_pages`, `save`,
   `to_pdf`).
-* **v1.0.31.2** — ✅ Declarative `.crystal-combine-pdf.yml` mode
+* **v1.0.31.2** — ✅ Declarative `.combine-pdf.yml` mode
   (`--init`, `--refresh`, `--recursive`, default-build).
   Numbering rewrite: 15 cardinal positions + 4 duplex-aware
   (`outer-*` / `inner-*`), 5 styles
@@ -147,9 +147,9 @@ Add to your `shard.yml`:
 [source,yaml]
 ----
 dependencies:
-  crystal-combine-pdf:
-    github: aloli-crystal/crystal-combine-pdf
-    version: "~> 1.0.31"
+  combine-pdf:
+    github: aloli-crystal/combine-pdf
+    version: "~> 1.0.31.46"
 ----
 
 then run `shards install`.
@@ -158,10 +158,10 @@ For the CLI:
 
 [source,shell]
 ----
-git clone https://github.com/aloli-crystal/crystal-combine-pdf
-cd crystal-combine-pdf
+git clone https://github.com/aloli-crystal/combine-pdf
+cd combine-pdf
 shards build --release
-cp bin/crystal-combine-pdf ~/bin/   # or use bin-installer
+cp bin/combine-pdf ~/bin/   # or use bin-installer
 ----
 
 == Mode déclaratif
@@ -173,33 +173,33 @@ any list of PDFs.
 
 [source,shell]
 ----
-crystal-combine-pdf init [-r] [--profile NAME] [--user-config PATH]
-  Initialise .crystal-combine-pdf.yml in the current folder.
+combine-pdf init [-r] [--profile NAME] [--user-config PATH]
+  Initialise .combine-pdf.yml in the current folder.
   -r scans subfolders too (parents first, then alpha).
   --profile : booklet (default) | book | report | slides | minimal
-  --user-config : custom path (defaults to ~/.crystal-combine-pdf.yml)
+  --user-config : custom path (defaults to ~/.combine-pdf.yml)
 
-crystal-combine-pdf refresh [-r]
+combine-pdf refresh [-r]
   Refresh the `files:` list of an existing YAML : add new PDFs
   at the end, comment out entries whose file has disappeared.
   Preserves comments, current order and inline titles.
 
-crystal-combine-pdf build
-crystal-combine-pdf
-  No subcommand : reads .crystal-combine-pdf.yml from the
+combine-pdf build
+combine-pdf
+  No subcommand : reads .combine-pdf.yml from the
   current folder, assembles the booklet, applies numbering and
   watermark, writes the output.
 
-crystal-combine-pdf compress FILE.pdf [-o OUTPUT.pdf | -i] [--deep]
+combine-pdf compress FILE.pdf [-o OUTPUT.pdf | -i] [--deep]
   Reduce the size of a single PDF (Flate recompression + GC).
   --deep delegates to ghostscript for image downsampling.
   -i : in-place, --backup : keep original as .bak.
 
-crystal-combine-pdf -d, --dir DIR
+combine-pdf -d, --dir DIR
   Common option : target a different folder than the current.
 ----
 
-=== `.crystal-combine-pdf.yml` example
+=== `.combine-pdf.yml` example
 
 [source,yaml]
 ----
@@ -270,8 +270,8 @@ versioned in Git. Pass them on the CLI:
 
 [source,shell]
 ----
-crystal-combine-pdf -u 'output-pwd' -w 'owner-pwd'  # output encryption
-crystal-combine-pdf -I 'global-source-pwd'           # source decryption
+combine-pdf -u 'output-pwd' -w 'owner-pwd'  # output encryption
+combine-pdf -I 'global-source-pwd'           # source decryption
 ----
 
 CLI flags always override the YAML. For booklets where each source
@@ -322,10 +322,10 @@ timestamping, LTV, PKCS#11/HSM) is exactly pdf-sign's.
 [source,shell]
 ----
 export P12_PASS=…                     # the passphrase lives in an env var
-crystal-combine-pdf merge a.pdf b.pdf -o book.pdf
-crystal-combine-pdf sign -i book.pdf -o book-signed.pdf \
+combine-pdf merge a.pdf b.pdf -o book.pdf
+combine-pdf sign -i book.pdf -o book-signed.pdf \
   -c signer.p12 -p P12_PASS -l b-lt -t https://tsa.example/tsr
-crystal-combine-pdf verify book-signed.pdf -a trust.pem
+combine-pdf verify book-signed.pdf -a trust.pem
 ----
 
 * The passphrase / PIN is given as the **name of an environment
@@ -346,8 +346,8 @@ YAML section, and CLI flags.
 
 [source,shell]
 ----
-crystal-combine-pdf encrypt rapport.pdf -u "secret" -l aes_256
-crystal-combine-pdf decrypt protege.pdf -u "secret" -i --backup
+combine-pdf encrypt rapport.pdf -u "secret" -l aes_256
+combine-pdf decrypt protege.pdf -u "secret" -i --backup
 ----
 
 * `encrypt`: encrypt an arbitrary PDF (RC4-128, AES-128 or AES-256).
@@ -365,7 +365,7 @@ Common options (inherited from `compress` / `gs`):
 
 ==== Encrypting the OUTPUT of a build
 
-`encrypt:` section in `.crystal-combine-pdf.yml`:
+`encrypt:` section in `.combine-pdf.yml`:
 
 [source,yaml]
 ----
@@ -393,11 +393,11 @@ CLI overrides (take precedence over YAML):
 
 [source,shell]
 ----
-crystal-combine-pdf -u "secret"            # output user_password
-crystal-combine-pdf -w "owner-pwd"         # owner_password
-crystal-combine-pdf -l aes_128             # level
-crystal-combine-pdf --encrypt              # turn on without YAML section
-crystal-combine-pdf --no-encrypt           # disable even if YAML enables it
+combine-pdf -u "secret"            # output user_password
+combine-pdf -w "owner-pwd"         # owner_password
+combine-pdf -l aes_128             # level
+combine-pdf --encrypt              # turn on without YAML section
+combine-pdf --no-encrypt           # disable even if YAML enables it
 ----
 
 ==== Reading encrypted source PDFs
@@ -416,7 +416,7 @@ CLI equivalent (avoid storing the password in versioned YAML):
 
 [source,shell]
 ----
-crystal-combine-pdf -I "source-secret"
+combine-pdf -I "source-secret"
 # or: --input-password=source-secret
 ----
 
@@ -476,7 +476,7 @@ Or via CLI:
 
 [source,shell]
 ----
-crystal-combine-pdf encrypt rapport.pdf -w "secret" -p print
+combine-pdf encrypt rapport.pdf -w "secret" -p print
 ----
 
 Available permissions:
@@ -560,7 +560,7 @@ available for scripted workflows.
 # Take three partition PDFs, merge them, number the result with
 # auto-detected partition sizes (so each partition gets its
 # intra-partition "1/4", "2/4" marks where relevant).
-crystal-combine-pdf assemble \
+combine-pdf assemble \
   partition1.pdf partition2.pdf partition3.pdf \
   -o livret.pdf
 ----
@@ -569,7 +569,7 @@ crystal-combine-pdf assemble \
 
 [source,shell]
 ----
-crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o output.pdf
+combine-pdf merge p1.pdf p2.pdf p3.pdf -o output.pdf
 ----
 
 === `number` — number an already-assembled PDF
@@ -577,20 +577,20 @@ crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o output.pdf
 [source,shell]
 ----
 # Default: format "N/T" in the bottom-right corner.
-crystal-combine-pdf number booklet.pdf
+combine-pdf number booklet.pdf
 
 # Same, with intra-partition marks. Partition sizes are given in
 # 1-based page order — the sum must equal the total page count.
 # Here: pages 1-4 = partition 1 (so each gets "1/4" through "4/4"),
 # pages 5-6 = partition 2, page 7 = partition 3 (single-page → no
 # intra-partition mark by default).
-crystal-combine-pdf number booklet.pdf --partitions 4,2,1
+combine-pdf number booklet.pdf --partitions 4,2,1
 
 # Skip the cover (page 1) so it stays untouched.
-crystal-combine-pdf number booklet.pdf --skip 1
+combine-pdf number booklet.pdf --skip 1
 
 # Custom format and red colour.
-crystal-combine-pdf number booklet.pdf \
+combine-pdf number booklet.pdf \
   --global-format "Page %page% of %total%" \
   --partition-format "(%page% / %total%)" \
   --color "0.7,0.0,0.0" \
@@ -645,7 +645,7 @@ crystal-combine-pdf number booklet.pdf \
 
 [source,crystal]
 ----
-require "crystal-combine-pdf"
+require "combine-pdf"
 
 # Module entry points
 CombinePDF.new                  # => CombinePDF::PDF (empty)

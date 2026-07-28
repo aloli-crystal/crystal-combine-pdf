@@ -1,6 +1,6 @@
 module CombinePDF
-  # Génère un fichier `.crystal-combine-pdf.yml` par défaut dans un
-  # dossier — utilisé par `crystal-combine-pdf init`.
+  # Génère un fichier `.combine-pdf.yml` par défaut dans un
+  # dossier — utilisé par `combine-pdf init`.
   #
   # Le YAML produit contient :
   # * des champs scalaires raisonnables (output, title déduits du nom
@@ -12,7 +12,7 @@ module CombinePDF
   module ConfigInitializer
     extend self
 
-    CONFIG_FILENAME = ".crystal-combine-pdf.yml"
+    CONFIG_FILENAME = ".combine-pdf.yml"
 
     # Options de personnalisation du YAML généré par `init`.
     #
@@ -249,10 +249,10 @@ module CombinePDF
       author = options.author || detect_author
 
       String.build do |s|
-        s << "# .crystal-combine-pdf.yml\n"
-        s << "# Généré par `crystal-combine-pdf init --profile #{options.profile}` — éditez librement.\n"
+        s << "# .combine-pdf.yml\n"
+        s << "# Généré par `combine-pdf init --profile #{options.profile}` — éditez librement.\n"
         s << "# Pour rafraîchir après ajout/retrait de PDF :\n"
-        s << "#   crystal-combine-pdf refresh\n"
+        s << "#   combine-pdf refresh\n"
         s << "\n"
         s << "output: " << output << "\n"
         s << "title:  \"" << title << "\"\n"
@@ -597,7 +597,7 @@ module CombinePDF
         #
         # Comme pour la section `encrypt:` de sortie, vous pouvez laisser
         # ce champ vide et fournir le mot de passe en CLI :
-        #   crystal-combine-pdf -I 'secret-d-entree'
+        #   combine-pdf -I 'secret-d-entree'
         # Les flags CLI surchargent toujours le YAML.
         # input_password: ""
 
@@ -619,7 +619,7 @@ module CombinePDF
         # Sécurité : pour ne PAS stocker de mot de passe en clair dans
         # ce YAML versionné, laissez les champs vides ici et fournissez
         # le mot de passe en CLI :
-        #   crystal-combine-pdf -u 'secret' -w 'owner-secret'
+        #   combine-pdf -u 'secret' -w 'owner-secret'
         # Les flags CLI surchargent toujours les valeurs du YAML.
         #
         # Permissions (tableau de cases autorisées ; `nil` ou absent =

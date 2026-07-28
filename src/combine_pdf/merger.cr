@@ -273,7 +273,7 @@ module CombinePDF
       # type « Philippe NÃ©nert » au lieu de « Philippe Nénert ».
       # Cf. spec PDF ISO 32000-1 § 7.9.2.2 et § 14.3.3.
       info_dict = ::PDF::Objects::Dictionary.new
-      info_dict["Producer"] = ::PDF::Objects::Str.unicode("crystal-combine-pdf #{CombinePDF::VERSION}")
+      info_dict["Producer"] = ::PDF::Objects::Str.unicode("combine-pdf #{CombinePDF::VERSION}")
       if t = @metadata_title
         info_dict["Title"] = ::PDF::Objects::Str.unicode(t)
       end

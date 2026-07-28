@@ -2,13 +2,13 @@ require "yaml"
 
 module CombinePDF
   # Préférences utilisateur partagées entre tous les projets (par
-  # opposition au `.crystal-combine-pdf.yml` qui est par projet).
+  # opposition au `.combine-pdf.yml` qui est par projet).
   #
   # Cas d'usage : « tous mes documents sont en duplex » ou « tous mes
   # livrets sont profile=book sauf indication contraire ». Évite de
   # passer les mêmes flags à chaque `init`.
   #
-  # **Chemin par défaut** : `~/.crystal-combine-pdf.yml`.
+  # **Chemin par défaut** : `~/.combine-pdf.yml`.
   # Surchargeable via `--user-config PATH` (utile pour les tests).
   #
   # **Précédence** (faible → fort) :
@@ -19,7 +19,7 @@ module CombinePDF
   # **Format YAML** (toutes les clés sont optionnelles) :
   #
   # ```yaml
-  # # ~/.crystal-combine-pdf.yml
+  # # ~/.combine-pdf.yml
   # default_profile: book          # profil par défaut quand --profile absent
   # author: "Philippe Nénert"      # override de l'auteur déduit (git config)
   # paper_size: a4                 # préférence de format de page
@@ -28,7 +28,7 @@ module CombinePDF
   module UserConfig
     extend self
 
-    DEFAULT_PATH = File.join(Path.home.to_s, ".crystal-combine-pdf.yml")
+    DEFAULT_PATH = File.join(Path.home.to_s, ".combine-pdf.yml")
 
     # Résultat du chargement : nom du profil à appliquer + procédure
     # qui RETOURNE des `InitOptions` enrichies des surcharges du

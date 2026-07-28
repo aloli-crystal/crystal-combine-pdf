@@ -1,5 +1,5 @@
 module CombinePDF
-  # Modèle de données du fichier `.crystal-combine-pdf.yml`.
+  # Modèle de données du fichier `.combine-pdf.yml`.
   #
   # Mappé un-pour-un sur la structure du YAML. Pas de `YAML::Serializable`
   # ici — la section `files:` est parsée hors-YAML pour préserver les
@@ -40,7 +40,7 @@ module CombinePDF
     # suffit pour ouvrir les PDFs sans password à l'ouverture mais
     # avec restrictions activées (cas le plus courant). Pour des
     # PDFs avec password à l'ouverture, fournir-le ici ou via
-    # `crystal-combine-pdf --input-password=PWD`.
+    # `combine-pdf --input-password=PWD`.
     property input_password : String
     # Liste ordonnée des fichiers à assembler.
     property files : Array(FileEntry)
@@ -90,7 +90,7 @@ module CombinePDF
 
     # Une entrée du tableau `files:`.
     #
-    # `path` : chemin relatif au dossier du `.crystal-combine-pdf.yml`.
+    # `path` : chemin relatif au dossier du `.combine-pdf.yml`.
     # `title` : libellé personnalisé pour le bookmark / TOC. `nil` = on
     #           dérive du nom de fichier (tirets → espaces, sans
     #           extension).

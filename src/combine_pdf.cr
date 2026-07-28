@@ -33,7 +33,7 @@ require "./combine_pdf/user_config"
 #                            (the booklet-of-partitions use case)
 #
 # ```
-# require "crystal-combine-pdf"
+# require "combine-pdf"
 #
 # # Merge three partitions into one PDF.
 # CombinePDF.merge(

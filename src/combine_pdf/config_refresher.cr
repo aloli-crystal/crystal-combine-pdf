@@ -1,7 +1,7 @@
 require "yaml"
 
 module CombinePDF
-  # Met à jour la section `files:` d'un `.crystal-combine-pdf.yml`
+  # Met à jour la section `files:` d'un `.combine-pdf.yml`
   # existant après un ajout/retrait de PDF dans le dossier.
   #
   # Conserve scrupuleusement :
@@ -25,7 +25,7 @@ module CombinePDF
     def refresh(dir : String, recursive : Bool = false) : String
       target = File.join(dir, ConfigInitializer::CONFIG_FILENAME)
       unless File.exists?(target)
-        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord `crystal-combine-pdf init`."
+        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord `combine-pdf init`."
       end
 
       raw = File.read(target)

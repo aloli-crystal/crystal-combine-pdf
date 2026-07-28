@@ -1,7 +1,7 @@
 require "yaml"
 
 module CombinePDF
-  # Lit un fichier `.crystal-combine-pdf.yml` et le transforme en
+  # Lit un fichier `.combine-pdf.yml` et le transforme en
   # `Config`. Tout le YAML passe par le parseur standard SAUF la
   # section `files:` qui est extraite ligne-par-ligne pour préserver
   # commentaires et titres inline lors d'un futur `--refresh`.

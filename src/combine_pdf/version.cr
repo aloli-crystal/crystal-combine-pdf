@@ -108,10 +108,10 @@ module CombinePDF
   #            décodables → les images ne se corrompent plus en
   #            pavés gris à la fusion.
   #
-  # 1.0.31.2 = mode déclaratif `.crystal-combine-pdf.yml` :
-  #            * `crystal-combine-pdf --init [-r]`    (génère le YAML)
-  #            * `crystal-combine-pdf --refresh [-r]` (rafraîchit la liste)
-  #            * `crystal-combine-pdf` sans argument  (build le livret)
+  # 1.0.31.2 = mode déclaratif `.combine-pdf.yml` :
+  #            * `combine-pdf --init [-r]`    (génère le YAML)
+  #            * `combine-pdf --refresh [-r]` (rafraîchit la liste)
+  #            * `combine-pdf` sans argument  (build le livret)
   #            Refonte de la numérotation (positions cardinales +
   #            outer/inner duplex-aware, styles plain/badge/circle/
   #            square/oval), couverture (mode + include_in_numbering),

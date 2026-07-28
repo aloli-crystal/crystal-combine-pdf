@@ -1,7 +1,7 @@
 require "./spec_helper"
 require "yaml"
 
-# Le `Producer` du PDF généré contient `crystal-combine-pdf #{VERSION}`.
+# Le `Producer` du PDF généré contient `combine-pdf #{VERSION}`.
 # Avant la v1.0.31.34, la constante `VERSION` était hardcodée dans
 # `version.cr` et pouvait diverger du `version:` de `shard.yml`. Toutes
 # les releases de v1.0.31.27 à v1.0.31.33 ont écrit « 1.0.31.26 » dans

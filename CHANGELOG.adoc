@@ -3,6 +3,20 @@
 :toc-title: Versions
 :toclevels: 2
 
+== v1.0.31.46 — 2026-07-28
+
+=== Changed
+
+* Rename the shard `crystal-combine-pdf` → `combine-pdf` (drop the
+  `crystal-` prefix; the `aloli-crystal` org already carries the
+  "Crystal" context). The `CombinePDF` module and public API are
+  unchanged. The CLI command and its per-project config file follow
+  the new name: `combine-pdf` and `.combine-pdf.yml`.
+* Add the entry-point file `src/combine-pdf.cr` so that
+  `require "combine-pdf"` resolves; it simply requires the existing
+  `src/combine_pdf.cr` (the internal `require "combine_pdf"` /
+  `./combine_pdf` paths are untouched).
+
 == v1.0.31.45 — 2026-06-28
 
 === Added
@@ -13,9 +27,9 @@
 +
 [source,bash]
 ----
-crystal-combine-pdf            # → build + ouvre dans Aperçu
-crystal-combine-pdf build      # idem (forme explicite)
-crystal-combine-pdf --no-open  # build, ne pas ouvrir
+combine-pdf            # → build + ouvre dans Aperçu
+combine-pdf build      # idem (forme explicite)
+combine-pdf --no-open  # build, ne pas ouvrir
 ----
 +
 Comportement :
@@ -50,9 +64,9 @@ une étape intermédiaire d'un pipeline.
 +
 [source,bash]
 ----
-crystal-combine-pdf rasterize rib.pdf -o rib-protege.pdf
-crystal-combine-pdf rasterize rib.pdf -i                # in-place
-crystal-combine-pdf rasterize rib.pdf --dpi 300 --quality 95
+combine-pdf rasterize rib.pdf -o rib-protege.pdf
+combine-pdf rasterize rib.pdf -i                # in-place
+combine-pdf rasterize rib.pdf --dpi 300 --quality 95
 ----
 +
 Pipeline interne :
@@ -61,7 +75,7 @@ Pipeline interne :
 . Les dimensions de chaque page source sont préservées (A4,
   Letter, custom — lues via `PDF::Reader` avant la rastérisation).
 . Le nouveau PDF embarque les JPEG en `PDF::Page#image` plein page.
-. Le `/Producer` est tagué `crystal-combine-pdf X.Y.Z (rasterized)`
+. Le `/Producer` est tagué `combine-pdf X.Y.Z (rasterized)`
   pour la traçabilité.
 
 === Options
@@ -96,7 +110,7 @@ Pipeline interne :
   scannée à l'envers en posant un tag `/Rotate 180` sur le dict de
   la page, sans réécrire les opérateurs de contenu. Visuellement
   correct dans le viewer, mais l'assemblage naïf de
-  `crystal-combine-pdf` ignorait ce tag et embarquait la page à
+  `combine-pdf` ignorait ce tag et embarquait la page à
   l'envers dans le PDF final.
 +
   Désormais, `Merger#add` détecte les pages avec `/Rotate ≠ 0` via
@@ -141,9 +155,9 @@ Pipeline interne :
 
 === Added
 
-* **Proposition interactive de créer `.crystal-combine-pdf.yml`**
+* **Proposition interactive de créer `.combine-pdf.yml`**
   quand on lance la commande dans un dossier qui n'en contient pas.
-  Avant : message d'erreur sec « Pour démarrer : crystal-combine-pdf init ».
+  Avant : message d'erreur sec « Pour démarrer : combine-pdf init ».
   Maintenant : prompt « Voulez-vous le créer maintenant (équivalent
   de `init`) ? [Y/n] » avec [Y] par défaut. Si on accepte (Entrée
   ou y/yes/o/oui), le YAML est généré comme avec `init`, en
@@ -166,7 +180,7 @@ Pipeline interne :
 * **Callable CLI entry point `CombinePDF::Cli.run(argv) : Int32`**
   (`src/combine_pdf/cli.cr`). The whole CLI moved out of the top-level
   `src/cli.cr` script into a method, so it can run both as the standalone
-  `crystal-combine-pdf` binary AND in-process from the unified `alolipdf`
+  `combine-pdf` binary AND in-process from the unified `alolipdf`
   binary (aloli-crystal/pdf-tools) — no shell-out. `src/cli.cr` is now a
   one-line wrapper. The `parse_permissions_list` / `build_options`
   helpers became module methods; OptionParser captured-block exits use an
@@ -214,8 +228,8 @@ Pipeline interne :
 +
 [source,shell]
 ----
-crystal-combine-pdf compress livret.pdf -L              # → livret-compressed.pdf linéarisé
-crystal-combine-pdf compress livret.pdf -i --backup -L  # in-place
+combine-pdf compress livret.pdf -L              # → livret-compressed.pdf linéarisé
+combine-pdf compress livret.pdf -i --backup -L  # in-place
 ----
 +
 Implémentation : shell-out à `qpdf --linearize` après la passe de
@@ -248,13 +262,13 @@ Le résultat est vérifiable avec `pdfinfo` :
 +
 [source,shell]
 ----
-crystal-combine-pdf help              # aide globale (équivalent --help)
-crystal-combine-pdf help init         # focus sur la sous-commande init
-crystal-combine-pdf help encrypt      # focus sur encrypt
+combine-pdf help              # aide globale (équivalent --help)
+combine-pdf help init         # focus sur la sous-commande init
+combine-pdf help encrypt      # focus sur encrypt
 ----
 +
 Refuse explicitement avec un message clair les sous-commandes
-inconnues : `crystal-combine-pdf help foobar` →
+inconnues : `combine-pdf help foobar` →
 *« Aide indisponible pour « foobar » (sous-commandes : init,
 refresh, build, compress, gs, encrypt, decrypt). »*
 +
@@ -285,7 +299,7 @@ les caractères non-ASCII et bascule en encodage UTF-16BE avec BOM
 Concerne `/Producer`, `/Title` et `/Author` du dictionnaire `/Info`
 écrit par `MergedDocumentWriter`. Le shard `aloli-crystal/pdf`
 faisait déjà le bon encodage de son côté ; seul `Merger` (de
-crystal-combine-pdf) avait le bug.
+combine-pdf) avait le bug.
 
 * Spec de non-régression : génère un PDF avec un auteur accentué,
   shell-out à `pdfinfo` (poppler) pour vérifier l'absence de mojibake
@@ -300,9 +314,9 @@ crystal-combine-pdf) avait le bug.
   `src/combine_pdf/version.cr` et n'était pas mise à jour lors des
   releases (oubli systématique dans le workflow de bump). Conséquence :
   toutes les versions de v1.0.31.27 à v1.0.31.33 produisaient des PDFs
-  dont le `/Producer` indiquait « crystal-combine-pdf 1.0.31.26 », et
+  dont le `/Producer` indiquait « combine-pdf 1.0.31.26 », et
   un binaire compilé localement à partir de la dernière production
-  affichait `crystal-combine-pdf --version` → `1.0.31.26`.
+  affichait `combine-pdf --version` → `1.0.31.26`.
 +
 Fix : `VERSION` est désormais lue **au compile-time** directement
 depuis `shard.yml` via le macro `read_file`. Plus jamais de
@@ -316,7 +330,7 @@ et la constante embarquée dans le binaire.
 === Notes
 
 Si vous aviez compilé localement une version récente de
-`crystal-combine-pdf` (binaire `~/.local/bin/crystal-combine-pdf`
+`combine-pdf` (binaire `~/.local/bin/combine-pdf`
 typiquement) et constaté un `--version` figé à 1.0.31.26, c'est ce
 bug. Recompilez à partir de v1.0.31.34.
 
@@ -327,7 +341,7 @@ bug. Recompilez à partir de v1.0.31.34.
 * Bump dépendance `aloli-crystal/pdf ~> 0.5.2` → `~> 0.5.3`
   qui corrige un bug de pages vides sur les PDFs normalisés via
   Ghostscript (cas typique : un PDF d'origine chiffré qu'on a
-  passé par `crystal-combine-pdf gs FICHIER.pdf -i --backup` pour
+  passé par `combine-pdf gs FICHIER.pdf -i --backup` pour
   le rendre lisible). Le content stream du PDF gs-normalisé porte
   un `/Length` qui pointe sur un objet *compressé* (object stream
   PDF 1.5+) que notre parser ne savait pas résoudre.
@@ -346,8 +360,8 @@ signatures numériques.
 +
 [source,shell]
 ----
-crystal-combine-pdf encrypt rapport.pdf -w "secret" -p print
-crystal-combine-pdf -p print,annotate                  # surcharge le YAML
+combine-pdf encrypt rapport.pdf -w "secret" -p print
+combine-pdf -p print,annotate                  # surcharge le YAML
 ----
 +
 Liste CSV de `print,copy,modify,annotate` ; raccourcis `none`
@@ -443,20 +457,20 @@ chiffrés dans un livret.
 
 === Added
 
-* **Sous-commande `crystal-combine-pdf decrypt FICHIER.pdf`** —
+* **Sous-commande `combine-pdf decrypt FICHIER.pdf`** —
   symétrique d'`encrypt` : ouvre un PDF chiffré (mot de passe via
   `-u` ou `-I`) et le ré-écrit en clair (sans `/Encrypt`).
 +
 [source]
 ----
-crystal-combine-pdf decrypt protege.pdf -u 'secret' -o clair.pdf
-crystal-combine-pdf decrypt protege.pdf -u 'secret' -i --backup
+combine-pdf decrypt protege.pdf -u 'secret' -o clair.pdf
+combine-pdf decrypt protege.pdf -u 'secret' -i --backup
 ----
 +
 Accepte aussi le mot de passe owner — le shard `pdf` essaie les
 deux automatiquement.
 
-* **Section `input_password:` dans `.crystal-combine-pdf.yml`** —
+* **Section `input_password:` dans `.combine-pdf.yml`** —
   mot de passe à essayer sur chaque PDF source chiffré listé dans
   `files:`. Vide par défaut (suffit pour les « owner-only protected »).
 +
@@ -502,18 +516,18 @@ secrets).
 
 === Added
 
-* **Sous-commande `crystal-combine-pdf encrypt FICHIER.pdf`** —
+* **Sous-commande `combine-pdf encrypt FICHIER.pdf`** —
   chiffre un PDF arbitraire en place ou vers un fichier de sortie,
   sans avoir besoin du YAML. Utile pour ajouter un mot de passe à un
   PDF existant.
 +
 [source]
 ----
-crystal-combine-pdf encrypt rapport.pdf -u "secret" -l aes_256 -o protege.pdf
-crystal-combine-pdf encrypt rapport.pdf -u "secret" -i --backup
+combine-pdf encrypt rapport.pdf -u "secret" -l aes_256 -o protege.pdf
+combine-pdf encrypt rapport.pdf -u "secret" -i --backup
 ----
 
-* **Section `encrypt:` dans `.crystal-combine-pdf.yml`** — applique
+* **Section `encrypt:` dans `.combine-pdf.yml`** — applique
   un chiffrement au livret produit par `build`. Tous les champs sont
   optionnels :
 +
@@ -586,7 +600,7 @@ pdf.save("encrypted.pdf")
 **Lecture des PDFs chiffrés AES-128 et AES-256** — `pdf` v0.5.0
 ajoute le déchiffrement natif du Standard Security Handler V=4
 (AES-128, Acrobat ≥ 7) et V=5 R=6 (AES-256, PDF 2.0). Conséquence
-pour `crystal-combine-pdf` : la grande majorité des PDFs chiffrés
+pour `combine-pdf` : la grande majorité des PDFs chiffrés
 modernes (Office, Acrobat, qpdf --encrypt 256) s'ouvrent et se
 fusionnent directement.
 
@@ -594,7 +608,7 @@ fusionnent directement.
 
 * Les PDFs chiffrés AES-128 et AES-256 (en plus du RC4 déjà géré
   en v1.0.31.27) sont lus nativement. Le contournement
-  `crystal-combine-pdf gs FICHIER.pdf -i --backup` n'est plus
+  `combine-pdf gs FICHIER.pdf -i --backup` n'est plus
   nécessaire que pour les rares PDFs au format vraiment exotique
   (PDFs linéarisés Acrobat 4 cassés, etc.).
 
@@ -606,10 +620,10 @@ fusionnent directement.
 
 **Lecture native des PDFs chiffrés RC4** — le shard `aloli-crystal/pdf`
 v0.4.0 sait désormais déchiffrer le « Standard Security Handler »
-(RC4 V=1/V=2, R=2/R=3). Conséquence pour `crystal-combine-pdf` : la
+(RC4 V=1/V=2, R=2/R=3). Conséquence pour `combine-pdf` : la
 plupart des PDFs « owner-only protected » (cas le plus courant des
 exports Office / Acrobat) s'ouvrent et se fusionnent directement,
-SANS passer par `crystal-combine-pdf gs` au préalable.
+SANS passer par `combine-pdf gs` au préalable.
 
 === Fixed
 
@@ -620,12 +634,12 @@ SANS passer par `crystal-combine-pdf gs` au préalable.
 +
 [source]
 ----
-$ crystal-combine-pdf
+$ combine-pdf
 ✓ Livret construit : ./mon-livret.pdf
 ----
 +
 À la place de l'ancien message d'erreur cryptique `Invalid header`
-puis du contournement `crystal-combine-pdf gs FICHIER.pdf -i --backup`.
+puis du contournement `combine-pdf gs FICHIER.pdf -i --backup`.
 
 === Changed
 
@@ -634,7 +648,7 @@ puis du contournement `crystal-combine-pdf gs FICHIER.pdf -i --backup`.
 === Notes
 
 Les PDFs chiffrés AES (V=4/V=5) ne sont pas encore lus nativement.
-Pour ceux-là, le contournement `crystal-combine-pdf gs FICHIER.pdf
+Pour ceux-là, le contournement `combine-pdf gs FICHIER.pdf
 -i --backup` reste nécessaire. Le message d'erreur le rappelle.
 
 == v1.0.31.26 — 2026-05-06
@@ -674,7 +688,7 @@ pas les lire.
 
 === Added
 
-* **Sous-commande `crystal-combine-pdf gs FICHIER.pdf`** — normalise
+* **Sous-commande `combine-pdf gs FICHIER.pdf`** — normalise
   un PDF via Ghostscript, court-circuit complet du parser pdf
   interne. Utile quand un PDF mal formé (typique : PDF linéarisé
   Acrobat ancien avec stream zlib invalide) refuse d'être lu par
@@ -682,10 +696,10 @@ pas les lire.
 +
 [source,shell]
 ----
-crystal-combine-pdf gs fichier.pdf            # → fichier-normalised.pdf
-crystal-combine-pdf gs fichier.pdf -i         # in-place
-crystal-combine-pdf gs fichier.pdf -i --backup
-crystal-combine-pdf gs fichier.pdf -o sortie.pdf
+combine-pdf gs fichier.pdf            # → fichier-normalised.pdf
+combine-pdf gs fichier.pdf -i         # in-place
+combine-pdf gs fichier.pdf -i --backup
+combine-pdf gs fichier.pdf -o sortie.pdf
 ----
 +
 Délègue à `aloli-crystal/ghostscript` avec
@@ -734,7 +748,7 @@ les erreurs Zlib/Filter qui surviendraient pendant la fusion sont
 attrapées tôt avec le contexte fichier.
 
 * **Documentation : `--init` → `init`** dans le banner CLI, le
-  message d'erreur (« Pour démarrer : crystal-combine-pdf init »),
+  message d'erreur (« Pour démarrer : combine-pdf init »),
   les exceptions levées par `BookletBuilder` et
   `ConfigRefresher`, le README EN/FR et la commentaire de
   `ConfigInitializer`. La forme flag `--init` n'a jamais existé
@@ -753,7 +767,7 @@ attrapées tôt avec le contexte fichier.
 
 === Added
 
-* **Config user `~/.crystal-combine-pdf.yml`** : préférences globales
+* **Config user `~/.combine-pdf.yml`** : préférences globales
   pour `init`, partagées entre tous les projets. Précédence (faible
   → fort) : profil → config user → drapeaux CLI. Format YAML :
 +
@@ -802,7 +816,7 @@ Test sur PDF réel (livret de messe, 621 Ko) :
 
 === Added
 
-* **`crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]`** :
+* **`combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]`** :
   réduit la taille d'un PDF unique en pur Crystal (sans dépendance
   réseau ni service en ligne).
 +
@@ -819,7 +833,7 @@ Sortie typique :
 +
 [source]
 ----
-$ crystal-combine-pdf compress kyrie.pdf
+$ combine-pdf compress kyrie.pdf
 ✓ 355.1 Ko → 266.6 Ko (24.9 %)
   pages: 1
   écrit dans : kyrie-compressed.pdf
@@ -884,7 +898,7 @@ optimisations, un futur flag `--deep` déléguera à
   exposée comme API publique. Lève `ArgumentError` pour un nom
   inconnu.
 * Le YAML généré annote dans son en-tête le profil utilisé
-  (`# Généré par crystal-combine-pdf init --profile <name>`).
+  (`# Généré par combine-pdf init --profile <name>`).
 
 === Backward compatibility
 
@@ -1009,7 +1023,7 @@ Aucune rupture. Sans `--profile`, on conserve les défauts historiques
 ** PDF dep already on `aloli-crystal/pdf` from the level-0 cascade.
 * `shard.yml` dep keys, `require` paths in `src/`, and README
   references updated. No behavioural change.
-* The crystal-combine-pdf shard itself is a Ruby-gem port and *keeps*
+* The combine-pdf shard itself is a Ruby-gem port and *keeps*
   its `crystal-` prefix per the naming convention.
 
 == v1.0.31.13 — 2026-04-28
@@ -1017,8 +1031,8 @@ Aucune rupture. Sans `--profile`, on conserve les défauts historiques
 **Nettoyage CLI : retrait des drapeaux qui doublaient les
 sous-commandes.**
 
-Avant : on pouvait écrire indifféremment `crystal-combine-pdf init`
-(sous-commande) OU `crystal-combine-pdf -i` / `--init` (drapeau).
+Avant : on pouvait écrire indifféremment `combine-pdf init`
+(sous-commande) OU `combine-pdf -i` / `--init` (drapeau).
 Idem pour `refresh` / `-R` / `--refresh`. Deux façons de faire pour
 la même chose — source de confusion dans l'aide et dans les
 scripts.
@@ -1029,10 +1043,10 @@ Maintenant : **une seule façon**, la sous-commande positionnelle.
 |===
 | Avant | Maintenant
 
-| `crystal-combine-pdf -i`        | `crystal-combine-pdf init`
-| `crystal-combine-pdf --init`    | `crystal-combine-pdf init`
-| `crystal-combine-pdf -R`        | `crystal-combine-pdf refresh`
-| `crystal-combine-pdf --refresh` | `crystal-combine-pdf refresh`
+| `combine-pdf -i`        | `combine-pdf init`
+| `combine-pdf --init`    | `combine-pdf init`
+| `combine-pdf -R`        | `combine-pdf refresh`
+| `combine-pdf --refresh` | `combine-pdf refresh`
 |===
 
 Conservés (ce sont de vraies options, pas des doublons) :
@@ -1104,15 +1118,15 @@ personnalisé directement à la création, sans passer par une
 [source,shell]
 ----
 # Livret recto-verso US Letter, sans filigrane, avec TOC
-crystal-combine-pdf init --duplex --paper-size letter \
+combine-pdf init --duplex --paper-size letter \
                          --skip-watermark --toc
 
 # Numérotation avec étoiles, titre custom, sans header
-crystal-combine-pdf init --init-format "★ %page% / %total% ★" \
+combine-pdf init --init-format "★ %page% / %total% ★" \
                          --title "Mes Partitions" --skip-header
 
 # Filigrane "BROUILLON" sur un livret minimaliste
-crystal-combine-pdf init --watermark BROUILLON --no-numbering
+combine-pdf init --watermark BROUILLON --no-numbering
 ----
 
 === Implémentation
@@ -1391,7 +1405,7 @@ d'autres pages.
 
 ==== `--refresh` ne corrompt plus le YAML
 
-Avant : après un `--refresh`, le `.crystal-combine-pdf.yml`
+Avant : après un `--refresh`, le `.combine-pdf.yml`
 ressortait en une seule ligne géante (« boubligoulba »). Cause :
 `String#lines` en Crystal supprime les `\n` finaux par défaut
 (`chomp: true`), à l'inverse de Ruby. Les lignes étaient
@@ -1409,14 +1423,14 @@ flags long :
 |===
 | Avant | Maintenant aussi
 
-| `crystal-combine-pdf --init`
-| `crystal-combine-pdf init`
+| `combine-pdf --init`
+| `combine-pdf init`
 
-| `crystal-combine-pdf --refresh`
-| `crystal-combine-pdf refresh`
+| `combine-pdf --refresh`
+| `combine-pdf refresh`
 
-| `crystal-combine-pdf` (implicite)
-| `crystal-combine-pdf build` (explicite)
+| `combine-pdf` (implicite)
+| `combine-pdf build` (explicite)
 |===
 
 Les flags `-i` / `-R` et `--init` / `--refresh` restent
@@ -1558,7 +1572,7 @@ présence du titre, du sommaire et d'au moins une annotation
 
 **Tous les PDF du marché sont désormais lisibles.** Plus besoin
 de pré-traiter avec qpdf : pdf v0.3.6 lit les xref streams
-PDF 1.5+ et les object streams, et crystal-combine-pdf préserve
+PDF 1.5+ et les object streams, et combine-pdf préserve
 correctement les images non-décodables (CCITTFaxDecode pour les
 scans noir-blanc, DCTDecode pour les JPEG, JBIG2Decode, JPXDecode).
 
@@ -1597,30 +1611,30 @@ est préservé.
 
 == v1.0.31.2 — 2026-04-27
 
-**Mode déclaratif `.crystal-combine-pdf.yml`** — la nouvelle façon
+**Mode déclaratif `.combine-pdf.yml`** — la nouvelle façon
 recommandée d'assembler un livret. L'utilisateur lance
-`crystal-combine-pdf --init` dans un dossier de PDFs ; un fichier YAML
+`combine-pdf --init` dans un dossier de PDFs ; un fichier YAML
 est généré avec la liste, l'utilisateur réordonne / titre / commente
-selon ses besoins, puis `crystal-combine-pdf` (sans argument) construit
+selon ses besoins, puis `combine-pdf` (sans argument) construit
 le livret final.
 
 === Nouvelles commandes
 
-* `crystal-combine-pdf --init` (`-i`) — génère un
-  `.crystal-combine-pdf.yml` peuplé avec les `*.pdf` du dossier courant.
-* `crystal-combine-pdf --refresh` (`-R`) — met à jour la liste `files:`
+* `combine-pdf --init` (`-i`) — génère un
+  `.combine-pdf.yml` peuplé avec les `*.pdf` du dossier courant.
+* `combine-pdf --refresh` (`-R`) — met à jour la liste `files:`
   : ajoute en fin les nouveaux PDF, commente les entrées dont le
   fichier a disparu (avec annotation `# disparu le YYYY-MM-DD`).
   *Préserve* commentaires, ordre courant et titres inline.
-* `crystal-combine-pdf --recursive` (`-r`) — scan récursif des
+* `combine-pdf --recursive` (`-r`) — scan récursif des
   sous-dossiers (avec `--init` ou `--refresh`), parents d'abord puis
   sous-dossiers triés alphabétiquement.
-* `crystal-combine-pdf --dir DIR` (`-d`) — cible un dossier différent
+* `combine-pdf --dir DIR` (`-d`) — cible un dossier différent
   du courant.
-* `crystal-combine-pdf` (sans argument) — lit le YAML du dossier
+* `combine-pdf` (sans argument) — lit le YAML du dossier
   courant et produit le livret.
 
-=== Fichier `.crystal-combine-pdf.yml`
+=== Fichier `.combine-pdf.yml`
 
 Couvre tous les réglages d'assemblage :
 
@@ -1780,8 +1794,8 @@ Three new building blocks :
 * CLI sub-commands `merge` and `assemble` :
 
   ----
-  crystal-combine-pdf merge p1.pdf p2.pdf p3.pdf -o livret.pdf
-  crystal-combine-pdf assemble p1.pdf p2.pdf p3.pdf -o livret.pdf
+  combine-pdf merge p1.pdf p2.pdf p3.pdf -o livret.pdf
+  combine-pdf assemble p1.pdf p2.pdf p3.pdf -o livret.pdf
   ----
 
 Implementation details :

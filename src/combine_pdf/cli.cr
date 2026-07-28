@@ -4,7 +4,7 @@ require "../combine_pdf"
 module CombinePDF
   # Callable CLI entry point. The command logic lives in a method (rather
   # than as top-level code) so it can run both as the standalone
-  # `crystal-combine-pdf` binary AND in-process from the unified
+  # `combine-pdf` binary AND in-process from the unified
   # `alolipdf` binary (aloli-crystal/pdf-tools). Returns the exit code.
   module Cli
     # Carries an early-exit code out of OptionParser's *captured* blocks
@@ -57,14 +57,14 @@ module CombinePDF
         return CombinePDF::Signer.forward(sub, argv[1..])
       end
 
-      # crystal-combine-pdf CLI.
+      # combine-pdf CLI.
       #
       # Mode déclaratif (recommandé) :
       #
-      #   crystal-combine-pdf init [-r]      crée .crystal-combine-pdf.yml
-      #   crystal-combine-pdf refresh [-r]   rafraîchit la liste files:
-      #   crystal-combine-pdf                construit le livret depuis le YAML
-      #   crystal-combine-pdf compress F.pdf compresse un PDF unique
+      #   combine-pdf init [-r]      crée .combine-pdf.yml
+      #   combine-pdf refresh [-r]   rafraîchit la liste files:
+      #   combine-pdf                construit le livret depuis le YAML
+      #   combine-pdf compress F.pdf compresse un PDF unique
       #
       # Sous-commandes historiques :
       #
@@ -158,30 +158,30 @@ module CombinePDF
 
       parser = OptionParser.new do |p|
         p.banner = <<-BANNER
-    Usage : crystal-combine-pdf SOUS-COMMANDE [options]
-            crystal-combine-pdf [options] FICHIERS...
+    Usage : combine-pdf SOUS-COMMANDE [options]
+            combine-pdf [options] FICHIERS...
 
     Mode déclaratif (recommandé pour les livrets) :
-      crystal-combine-pdf init [options]
-        Crée un fichier .crystal-combine-pdf.yml dans le dossier
+      combine-pdf init [options]
+        Crée un fichier .combine-pdf.yml dans le dossier
         courant, peuplé avec la liste des PDF présents. Voir les
         options ci-dessous pour personnaliser le YAML généré.
 
-      crystal-combine-pdf refresh [-r]
+      combine-pdf refresh [-r]
         Met à jour la liste `files:` du YAML : ajoute en fin les
         nouveaux PDF, commente les entrées dont le fichier a
         disparu. Préserve commentaires, ordre et titres existants.
 
-      crystal-combine-pdf build
-      crystal-combine-pdf
-        Construit le livret depuis .crystal-combine-pdf.yml du
+      combine-pdf build
+      combine-pdf
+        Construit le livret depuis .combine-pdf.yml du
         dossier courant : assemble, numérote, ajoute filigrane,
         page de titre + sommaire cliquable. En terminal interactif,
         le PDF produit est ouvert dans le viewer par défaut
         (Aperçu sur macOS, xdg-open sinon) — passer `--no-open`
         pour désactiver.
 
-      crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i] [-L]
+      combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i] [-L]
         Réduit la taille d'un PDF (recompression Flate uniforme +
         garbage collection des objets orphelins). Gain typique 30-80
         %. Pas de downsampling d'images en pur Crystal — voir le
@@ -190,27 +190,27 @@ module CombinePDF
         (ISO 32000-1 § F) pour streaming HTTP — nécessite `qpdf`
         installé.
 
-      crystal-combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i]
+      combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i]
         Normalise un PDF via Ghostscript. Utile quand le parser
         interne refuse un PDF mal formé (ex. PDF linéarisé Acrobat
         ancien avec stream zlib invalide). Court-circuite le parser
         Crystal et délègue tout à gs. Nécessite ghostscript installé.
 
-      crystal-combine-pdf encrypt FICHIER.pdf [-o SORTIE.pdf | -i]
+      combine-pdf encrypt FICHIER.pdf [-o SORTIE.pdf | -i]
                           [-l LEVEL] [-u USER_PWD] [-w OWNER_PWD]
         Chiffre un PDF (Standard Security Handler RC4-128, AES-128
         ou AES-256). Pas besoin du YAML — on opère directement sur
         le fichier passé en argument. Voir aussi la section `encrypt:`
         du YAML pour chiffrer le livret produit par `build`.
 
-      crystal-combine-pdf decrypt FICHIER.pdf [-o SORTIE.pdf | -i] [-u PWD]
+      combine-pdf decrypt FICHIER.pdf [-o SORTIE.pdf | -i] [-u PWD]
         Déchiffre un PDF protégé : le sauve sans `/Encrypt` (PDF en
         clair). Le mot de passe (utilisateur OU owner) est fourni
         via `-u` ; vide par défaut pour les PDFs « owner-only
         protected » (cas le plus courant : restrictions sans
         password à l'ouverture). Symétrique de `encrypt`.
 
-      crystal-combine-pdf rasterize FICHIER.pdf [-o SORTIE.pdf | -i]
+      combine-pdf rasterize FICHIER.pdf [-o SORTIE.pdf | -i]
                           [--dpi N] [--quality Q]
         Rastérise chaque page en JPEG plein page (via Ghostscript),
         puis réembarque dans un nouveau PDF. Anti-extraction /
@@ -291,7 +291,7 @@ module CombinePDF
         end
         p.on("--title=TEXT", "Override le titre (défaut : nom du dossier)") { |v| init_options.title = v }
         p.on("--toc", "Active la page de titre + sommaire cliquable") { init_options.toc_state = :enabled }
-        p.on("--user-config=PATH", "Chemin custom de la config user (défaut : ~/.crystal-combine-pdf.yml)") do |_v|
+        p.on("--user-config=PATH", "Chemin custom de la config user (défaut : ~/.combine-pdf.yml)") do |_v|
           # Déjà géré par le pré-scan ; ce handler est juste là pour que
           # OptionParser ne se plaigne pas.
         end
@@ -389,7 +389,7 @@ module CombinePDF
           raise Halt.new(0)
         end
         p.on("-v", "--version", "Affiche la version") do
-          puts "crystal-combine-pdf #{CombinePDF::VERSION}"
+          puts "combine-pdf #{CombinePDF::VERSION}"
           raise Halt.new(0)
         end
 
@@ -407,9 +407,9 @@ module CombinePDF
       # Sous-commandes mode déclaratif : `init`, `refresh`, `build`
       # (équivalentes aux flags `--init`, `--refresh`, ou aucun flag).
       # Permettent une UX plus naturelle :
-      #   crystal-combine-pdf init       au lieu de crystal-combine-pdf --init
-      #   crystal-combine-pdf refresh    au lieu de crystal-combine-pdf --refresh
-      #   crystal-combine-pdf build      explicitement (vs argument vide)
+      #   combine-pdf init       au lieu de combine-pdf --init
+      #   combine-pdf refresh    au lieu de combine-pdf --refresh
+      #   combine-pdf build      explicitement (vs argument vide)
       if !positional.empty?
         case positional.first
         when "init"
@@ -456,7 +456,7 @@ module CombinePDF
           valid_subs = %w(init refresh build compress gs encrypt decrypt rasterize)
           unless valid_subs.includes?(target)
             STDERR.puts "Aide indisponible pour « #{sub} » (sous-commandes : #{valid_subs.join(", ")})."
-            STDERR.puts "Utilisez `crystal-combine-pdf help` pour l'aide globale."
+            STDERR.puts "Utilisez `combine-pdf help` pour l'aide globale."
             return 1
           end
           # Imprimer le banner global puis souligner la sous-commande
@@ -464,7 +464,7 @@ module CombinePDF
           puts ""
           puts "─── Focus : #{target} ───"
           full.lines.each_with_index do |line, i|
-            if line.includes?("crystal-combine-pdf #{target}")
+            if line.includes?("combine-pdf #{target}")
               # Imprimer cette ligne et les ~12 lignes qui la décrivent
               puts ""
               full.lines[i, 12].each { |l| puts l.rstrip }
@@ -487,7 +487,7 @@ module CombinePDF
           puts "✓ Créé : #{target}"
           pdfs = CombinePDF::ConfigInitializer.scan_pdfs(target_dir, recursive)
           puts "  #{pdfs.size} fichier(s) PDF listé(s)#{recursive ? " (récursif)" : ""}"
-          puts "  Éditez ce fichier puis lancez `crystal-combine-pdf` pour construire."
+          puts "  Éditez ce fichier puis lancez `combine-pdf` pour construire."
           return 0
         rescue ex
           STDERR.puts "Erreur : #{ex.message}"
@@ -511,7 +511,7 @@ module CombinePDF
       if mode_compress
         if positional.empty?
           STDERR.puts "Erreur : compress nécessite un fichier d'entrée."
-          STDERR.puts "Usage : crystal-combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]"
+          STDERR.puts "Usage : combine-pdf compress FICHIER.pdf [-o SORTIE.pdf | -i]"
           return 1
         end
         input = positional.first
@@ -560,7 +560,7 @@ module CombinePDF
       if mode_gs
         if positional.empty?
           STDERR.puts "Erreur : gs nécessite un fichier d'entrée."
-          STDERR.puts "Usage : crystal-combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i] [--backup]"
+          STDERR.puts "Usage : combine-pdf gs FICHIER.pdf [-o SORTIE.pdf | -i] [--backup]"
           return 1
         end
         unless ::Ghostscript.available?
@@ -627,7 +627,7 @@ module CombinePDF
       if mode_encrypt
         if positional.empty?
           STDERR.puts "Erreur : encrypt nécessite un fichier d'entrée."
-          STDERR.puts "Usage : crystal-combine-pdf encrypt FICHIER.pdf [-o SORTIE.pdf | -i]"
+          STDERR.puts "Usage : combine-pdf encrypt FICHIER.pdf [-o SORTIE.pdf | -i]"
           STDERR.puts "                                    [-l LEVEL] [-u USER_PWD] [-w OWNER_PWD]"
           return 1
         end
@@ -701,7 +701,7 @@ module CombinePDF
       if mode_decrypt
         if positional.empty?
           STDERR.puts "Erreur : decrypt nécessite un fichier d'entrée."
-          STDERR.puts "Usage : crystal-combine-pdf decrypt FICHIER.pdf [-o SORTIE.pdf | -i] [-u PWD]"
+          STDERR.puts "Usage : combine-pdf decrypt FICHIER.pdf [-o SORTIE.pdf | -i] [-u PWD]"
           return 1
         end
         input = positional.first
@@ -767,7 +767,7 @@ module CombinePDF
       if mode_rasterize
         if positional.empty?
           STDERR.puts "Erreur : rasterize nécessite un fichier d'entrée."
-          STDERR.puts "Usage : crystal-combine-pdf rasterize FICHIER.pdf [-o SORTIE.pdf | -i] [--dpi N] [--quality Q]"
+          STDERR.puts "Usage : combine-pdf rasterize FICHIER.pdf [-o SORTIE.pdf | -i] [--dpi N] [--quality Q]"
           return 1
         end
         input = positional.first
@@ -862,7 +862,7 @@ module CombinePDF
             # `""`  = Entrée seule → on accepte (défaut [Y]).
             if raw.nil?
               STDERR.puts ""
-              STDERR.puts "Annulé (entrée fermée). Pour le faire plus tard : crystal-combine-pdf init"
+              STDERR.puts "Annulé (entrée fermée). Pour le faire plus tard : combine-pdf init"
               return 1
             end
             response = raw.strip.downcase
@@ -872,20 +872,20 @@ module CombinePDF
                 puts "✓ Créé : #{target}"
                 pdfs = CombinePDF::ConfigInitializer.scan_pdfs(target_dir, recursive)
                 puts "  #{pdfs.size} fichier(s) PDF listé(s)#{recursive ? " (récursif)" : ""}"
-                puts "  Éditez ce fichier puis relancez `crystal-combine-pdf` pour construire le livret."
+                puts "  Éditez ce fichier puis relancez `combine-pdf` pour construire le livret."
                 return 0
               rescue ex
                 STDERR.puts "Erreur : #{ex.message}"
                 return 1
               end
             else
-              STDERR.puts "Annulé. Pour le faire plus tard : crystal-combine-pdf init"
+              STDERR.puts "Annulé. Pour le faire plus tard : combine-pdf init"
               return 1
             end
           else
             STDERR.puts "Erreur : aucune sous-commande spécifiée et aucun #{CombinePDF::ConfigInitializer::CONFIG_FILENAME} trouvé dans #{target_dir}."
             STDERR.puts ""
-            STDERR.puts "Pour démarrer : crystal-combine-pdf init"
+            STDERR.puts "Pour démarrer : combine-pdf init"
             STDERR.puts parser
             return 1
           end

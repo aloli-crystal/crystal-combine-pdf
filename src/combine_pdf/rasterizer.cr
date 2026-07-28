@@ -115,7 +115,7 @@ module CombinePDF
 
         # Métadonnée : on marque la rastérisation pour traçabilité
         # (audit éventuel d'un document protégé).
-        doc.producer = "crystal-combine-pdf #{CombinePDF::VERSION} (rasterized)"
+        doc.producer = "combine-pdf #{CombinePDF::VERSION} (rasterized)"
 
         doc.save(output)
       ensure

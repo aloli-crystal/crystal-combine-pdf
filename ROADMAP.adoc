@@ -1,10 +1,10 @@
-= Roadmap — crystal-combine-pdf
+= Roadmap — combine-pdf
 :toc: left
 :toclevels: 2
 
 État au 2026-05-03 : v1.0.31.23 publiée. Couverture API stable
 (`merge`, `number`, `assemble`, `compress`), build déclaratif via
-`.crystal-combine-pdf.yml`, 5 profils à l'`init`, config user
+`.combine-pdf.yml`, 5 profils à l'`init`, config user
 globale, compression profonde via `aloli-crystal/ghostscript`.
 89 specs verts, ameba clean.
 
@@ -131,7 +131,7 @@ Effort estimé : **L à XL** (1-2 sem. selon polish).
 |===
 | Layer | Tech
 
-| Backend          | **Marten** (framework Crystal Aloli-friendly). Dépendance directe sur `crystal-combine-pdf` et `aloli-crystal/ghostscript`.
+| Backend          | **Marten** (framework Crystal Aloli-friendly). Dépendance directe sur `combine-pdf` et `aloli-crystal/ghostscript`.
 | Templates serveur | Templates Marten + HTMX pour les interactions I/O (upload, polling de job, téléchargement).
 | Client-side rich  | **Opal** (Ruby → JS) pour drag-drop, validation immédiate des fichiers, thumbnails, détection auto de l'OS sur la page Download. `aloli-crystal/deploy --opal-assets` gère déjà la compilation.
 | Styling          | **Bulma**. CSS framework pragmatique, pas de processus de build lourd, mode dark prêt.
@@ -541,7 +541,7 @@ cumulées sur les trois OS, signature/notarisation incluse).
 |===
 | Layer | Tech
 
-| Logique métier      | Le binaire `crystal-combine-pdf` lui-même, invoqué par l'UI via `Process.run`.
+| Logique métier      | Le binaire `combine-pdf` lui-même, invoqué par l'UI via `Process.run`.
 | UI macOS            | Native AppKit — réutilise `aloli-crystal/appkit` qu'on a déjà.
 | UI Linux            | À étudier : GTK4 via FFI (natif, lourd) **ou** approche Tauri-like (UI HTML+JS dans une webview système, backend Crystal).
 | UI Windows          | Tauri-like probablement le plus simple si on veut une UI partagée avec Linux.
@@ -743,7 +743,7 @@ PDF intégré, signature numérique.
 
 * Audit complet :
   link:../AUDIT-combine_pdf-vs-crystal-combine-pdf.adoc[AUDIT...]
-* Repo : https://github.com/aloli-crystal/crystal-combine-pdf
+* Repo : https://github.com/aloli-crystal/combine-pdf
 * Gem upstream : https://github.com/boazsegev/combine_pdf (v0.1.6,
   non maintenu — opportunité de prendre la place côté écosystème).
 * Shards-frères : `aloli-crystal/ghostscript` (compress deep),

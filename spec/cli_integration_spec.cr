@@ -12,7 +12,7 @@ describe "CLI déclarative" do
       opts = CombinePDF::ConfigInitializer::InitOptions.new
       opts.watermark_state = :omitted
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should_not contain("watermark:")
       content.should_not contain("# watermark:")
     end
@@ -25,7 +25,7 @@ describe "CLI déclarative" do
       opts.watermark_state = :enabled
       opts.watermark_text = "CONFIDENTIEL"
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("\nwatermark:\n")
       content.should contain("text: \"CONFIDENTIEL\"")
     end
@@ -39,7 +39,7 @@ describe "CLI déclarative" do
       opts.paper_size = "letter"
       opts.duplex = true
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("\ntoc:\n")
       content.should contain("paper_size: letter")
       content.should contain("duplex: true")
@@ -52,7 +52,7 @@ describe "CLI déclarative" do
       opts = CombinePDF::ConfigInitializer::InitOptions.new
       opts.numbering_enabled = false
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("enabled: false")
     end
   end
@@ -104,7 +104,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       opts = CombinePDF::ConfigInitializer.options_for_profile("book")
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("duplex: true")
       content.should contain("position: outer-bottom")
       content.should contain("Numérotation intra-partition désactivée")
@@ -117,7 +117,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       opts = CombinePDF::ConfigInitializer.options_for_profile("minimal")
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("--profile minimal")
       content.should contain("enabled: false")
       content.should_not contain("\ntoc:\n")
@@ -132,7 +132,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       opts = CombinePDF::ConfigInitializer.options_for_profile("booklet")
       CombinePDF::ConfigInitializer.init(dir, options: opts)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("style: oval")
       content.should contain("font_size: 27")
       content.should contain("hide_when_single: true")
@@ -183,7 +183,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "beta.pdf"))
 
       CombinePDF::ConfigInitializer.init(dir)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       idx_alpha = content.index("- alpha.pdf").as(Int32)
       idx_beta = content.index("- beta.pdf").as(Int32)
       idx_zebra = content.index("- Zebra.pdf").as(Int32)
@@ -200,7 +200,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "sub-b", "beta.pdf"))
 
       CombinePDF::ConfigInitializer.init(dir, recursive: true)
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("- racine.pdf")
       content.should contain("- sub-a/alpha.pdf")
       content.should contain("- sub-b/beta.pdf")
@@ -223,7 +223,7 @@ describe "CLI déclarative" do
       summary = CombinePDF::ConfigRefresher.refresh(dir)
       summary.should contain("+1")
 
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("- c.pdf")
     end
 
@@ -238,7 +238,7 @@ describe "CLI déclarative" do
       summary = CombinePDF::ConfigRefresher.refresh(dir)
       summary.should contain("-1")
 
-      content = File.read(File.join(dir, ".crystal-combine-pdf.yml"))
+      content = File.read(File.join(dir, ".combine-pdf.yml"))
       content.should contain("# - b.pdf")
       content.should contain("disparu le")
     end
@@ -251,7 +251,7 @@ describe "CLI déclarative" do
       CombinePDF::ConfigInitializer.init(dir)
 
       # L'utilisateur commente b.pdf manuellement
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).gsub("- b.pdf", "# - b.pdf")
       File.write(yml, content)
 
@@ -271,7 +271,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
       SpecHelper.write_a4(File.join(dir, "b.pdf"))
 
-      yml_path = File.join(dir, ".crystal-combine-pdf.yml")
+      yml_path = File.join(dir, ".combine-pdf.yml")
       File.write(yml_path, <<-YAML)
         output: test.pdf
         title: "Test"
@@ -329,7 +329,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "fin.pdf"), page_count: 1)
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).gsub("mode: none", "mode: recto")
       File.write(yml, content)
 
@@ -352,7 +352,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "p1.pdf"), page_count: 2)
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).sub("# toc:", "toc:")
         .sub("#   bookmarks: true", "  bookmarks: true")
         .sub("#   page:", "  page:")
@@ -372,7 +372,7 @@ describe "CLI déclarative" do
       SpecHelper.write_letter(File.join(dir, "p1.pdf"))
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).sub("paper_size: a4", "paper_size: letter")
         .sub("# toc:", "toc:")
         .sub("#   bookmarks: true", "  bookmarks: true")
@@ -392,7 +392,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "p1.pdf"))
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).sub("paper_size: a4", "paper_size: \"500x700\"")
         .sub("# toc:", "toc:")
         .sub("#   bookmarks: true", "  bookmarks: true")
@@ -413,7 +413,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "p2.pdf"), page_count: 3)
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).sub("# toc:", "toc:")
         .sub("#   bookmarks: true", "  bookmarks: true")
         .sub("#   page:", "  page:")
@@ -450,7 +450,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "p1.pdf"), page_count: 2)
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).gsub(
         "format: \"• %page% / %total% •\"",
         "format: \"★ %page% / %total% ★\"",
@@ -470,7 +470,7 @@ describe "CLI déclarative" do
       SpecHelper.write_a4(File.join(dir, "a.pdf"))
 
       CombinePDF::ConfigInitializer.init(dir)
-      yml = File.join(dir, ".crystal-combine-pdf.yml")
+      yml = File.join(dir, ".combine-pdf.yml")
       content = File.read(yml).sub("# watermark:", "watermark:")
         .sub("#   text: \"build-watermark\"", "  text: \"FILIGRANE-TEST\"")
         .sub("#   style: diagonal", "  style: diagonal")

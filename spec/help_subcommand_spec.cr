@@ -3,7 +3,7 @@ require "./spec_helper"
 # Spec d'intégration : la sous-commande `help` doit fonctionner
 # (équivalent UX standard de `--help`, et `help <sub>` filtre sur
 # une sous-commande). Build le binaire une fois pour tous les tests.
-describe "crystal-combine-pdf help" do
+describe "combine-pdf help" do
   cli_binary = File.join(SpecHelper::TMP_DIR, "ccp-help-test")
 
   before_all do
@@ -25,7 +25,7 @@ describe "crystal-combine-pdf help" do
     status = Process.run(cli_binary, ["help"], output: buf, error: buf)
     status.success?.should be_true
     s = buf.to_s
-    s.should contain("Usage : crystal-combine-pdf")
+    s.should contain("Usage : combine-pdf")
     s.should contain("init")
     s.should contain("refresh")
     s.should contain("encrypt")
@@ -55,7 +55,7 @@ describe "crystal-combine-pdf help" do
       buf = IO::Memory.new
       status = Process.run(cli_binary, [variant], output: buf, error: buf)
       status.success?.should be_true
-      buf.to_s.should contain("Usage : crystal-combine-pdf")
+      buf.to_s.should contain("Usage : combine-pdf")
     end
   end
 end

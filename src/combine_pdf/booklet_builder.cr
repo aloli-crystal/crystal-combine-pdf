@@ -3,8 +3,8 @@ module CombinePDF
   # numérotation (cover-aware, duplex-aware, multi-positions), pose
   # le filigrane et écrit le PDF de sortie.
   #
-  # C'est le moteur de la commande `crystal-combine-pdf` (sans
-  # sous-commande) qui lit `.crystal-combine-pdf.yml` et produit
+  # C'est le moteur de la commande `combine-pdf` (sans
+  # sous-commande) qui lit `.combine-pdf.yml` et produit
   # le livret.
   class BookletBuilder
     @config : Config
@@ -41,7 +41,7 @@ module CombinePDF
     def self.from_dir(dir : String) : BookletBuilder
       yml = File.join(dir, ConfigInitializer::CONFIG_FILENAME)
       unless File.exists?(yml)
-        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord `crystal-combine-pdf init`."
+        raise "Aucun fichier #{ConfigInitializer::CONFIG_FILENAME} dans #{dir}. Lancez d'abord `combine-pdf init`."
       end
       new(ConfigLoader.load(yml), dir)
     end
@@ -97,7 +97,7 @@ module CombinePDF
           s << "\nContournements possibles :\n"
           s << "  1. Normaliser le PDF via Ghostscript (recommandé) :\n"
           bad_files.each do |path, _|
-            s << "       crystal-combine-pdf gs " << path << " -i --backup\n"
+            s << "       combine-pdf gs " << path << " -i --backup\n"
           end
           s << "     Réécrit le PDF en place avec une structure standard\n"
           s << "     que le shard arrive à parser. L'original est sauvegardé\n"
